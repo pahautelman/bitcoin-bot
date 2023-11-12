@@ -1,4 +1,22 @@
 {
-    "coin": "BTC-USD",
-    "interval": "1d"
+    "coin": {
+        "value": "BTC-USD",
+        "description": "Coin symbol to be used with yfinance.Ticker. Find supported coins on the https://finance.yahoo.com/ website"
+    },
+    "interval": {
+        "value": "1d",
+        "description": "Interval between each ticker data point."
+    },
+    "period": {
+        "value": "4y",
+        "description": "Period of time that specifies the time interval to be used when fetching data: [period, currentTime]. Possible values are: [d, mo, y, max]"
+    }, 
+    "portfolio_size": {
+        "value": 2000,
+        "description": "Initial amount of money (USD) to be used by the trading agent."
+    },
+    "DCA_interval": {
+        "value": 14,
+        "description": "Interval between each DCA (Dollar Cost Averaging) investment (as value * ticker intervals)."
+    }
 }
