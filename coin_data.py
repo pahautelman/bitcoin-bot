@@ -66,30 +66,27 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
 
     # plot value of invested USD
     total_value = []
-    coins_acquired = 0
-    coins_value = []
     usd_value = []
+    coins_value = []
+
+    usd_invested = 0
+    coins_invested = 0
     for i in range(len(coin_data)):
         if coin_data.index[i] in investments.index:
-            coins_acquired += investments.loc[coin_data.index[i]][Investments.COIN_AMOUNT_INVESTED]
-            assert coins_acquired >= 0
-            coins_value.append(coins_acquired * coin_data.loc[coin_data.index[i]]['Close'])
+            usd_invested = investments.loc[coin_data.index[i]][Investments.USD_AMOUNT_INVESTED]
+            coins_invested = investments.loc[coin_data.index[i]][Investments.COIN_AMOUNT_INVESTED]
 
-            usd_value.append(investments.loc[coin_data.index[i]][Investments.USD_AMOUNT_INVESTED])
-            assert usd_value[-1] >= 0
-        else:
-            coins_value.append(coins_acquired * coin_data.loc[coin_data.index[i]]['Close'])
-            usd_value.append(usd_value[-1])
-        
-        total_value.append(coins_value[i] + usd_value[i])
-        assert total_value[-1] >= 0
+        usd_value.append(usd_invested)
+        coins_value.append(coins_invested * coin_data.loc[coin_data.index[i]]['Close'])
+
+        total_value.append(usd_value[i] + coins_value[i])
     
     plt.plot(coin_data.index, total_value, label='Total value', color='black')
     plt.show()
 
     # plot percentage of portfolio in USD and coins
     plt.figure(figsize=(20, 10))
-    plt.title(f'{coin} profit with {agent_name} investments')
+    plt.title(f'Percentage of portfolio in USD and {coin} value')
     plt.xlabel('Date')
     plt.ylabel('Percentage of portfolio')
     plt.bar(
@@ -99,12 +96,10 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
         color='green'
     )
     plt.bar(
-        coin_data.index, 
-        [coins_value[i] / total_value[i] for i in range(len(total_value))], 
-        bottom=[usd_value[i] / total_value[i] for i in range(len(total_value))], 
-        label=f'{coin} value', 
+        coin_data.index,
+        [coins_value[i] / total_value[i] for i in range(len(total_value))],
+        bottom=[usd_value[i] / total_value[i] for i in range(len(total_value))],
+        label=f'{coin} value',
         color='red'
     )
-
-
-
+    plt.show()

@@ -6,7 +6,7 @@ class Agent(ABC):
     """
     Class for all agents. 
     
-    Method 'act' should return an Actions object.
+    Method @act should return an Actions object.
     """
 
     def __init__(self):

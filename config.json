@@ -4,11 +4,11 @@
         "description": "Coin symbol to be used with yfinance.Ticker. Find supported coins on the https://finance.yahoo.com/ website"
     },
     "interval": {
-        "value": "1d",
+        "value": "5m",
         "description": "Interval between each ticker data point."
     },
     "period": {
-        "value": "4y",
+        "value": "59d",
         "description": "Period of time that specifies the time interval to be used when fetching data: [period, currentTime]. Possible values are: [d, mo, y, max]"
     }, 
     "portfolio_size": {
@@ -16,7 +16,15 @@
         "description": "Initial amount of money (USD) to be used by the trading agent."
     },
     "DCA_interval": {
-        "value": 14,
+        "value": 7,
         "description": "Interval between each DCA (Dollar Cost Averaging) investment (as value * ticker intervals)."
+    },
+    "BB_window": {
+        "value": 10,
+        "description": "Window size for the Bollinger Bands indicator."
+    },
+    "BB_std": {
+        "value": 2.2,
+        "description": "Standard deviation for the Bollinger Bands indicator."
     }
 }

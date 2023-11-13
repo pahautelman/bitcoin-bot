@@ -45,15 +45,33 @@ class DCA_agent(Agent):
             Investments: The investments to make
         """
         actions = self.act(coin_data)
-        total_invested = len(actions) * self.investment_amount
-        usd_invested = [total_invested - self.investment_amount * i  for i in range(1, len(actions) + 1)]
-        num_coins_bought = []
-        for i in range(len(actions)):
-            # TODO: fix this
-            num_coins_bought.append(self.investment_amount / coin_data.loc[actions.index[i]]['Close'])
+        portfolio_size = self.investment_amount * len(actions)
 
-        investments_data = {
-            Investments.USD_AMOUNT_INVESTED: usd_invested,
-            Investments.COIN_AMOUNT_INVESTED: num_coins_bought
-        }
-        return Investments(actions.index, investments_data)
+        investments = None
+        for i in range(len(actions)):
+            if i == 0:
+                investments = Investments(
+                    index=[coin_data.index[0]],
+                    data={
+                        Investments.USD_AMOUNT_INVESTED: [portfolio_size - self.investment_amount],
+                        Investments.COIN_AMOUNT_INVESTED: [self.investment_amount / coin_data.loc[actions.index[0]]['Close']]
+                    }
+                )
+                continue
+            investments.buy_asset(actions.index[i], self.investment_amount, coin_data.loc[actions.index[i]]['Close'])
+        return investments
+
+
+        # actions = self.act(coin_data)
+        # total_invested = len(actions) * self.investment_amount
+        # usd_invested = [total_invested - self.investment_amount * i  for i in range(1, len(actions) + 1)]
+        # num_coins_bought = []
+        # for i in range(len(actions)):
+        #     # TODO: fix this
+        #     num_coins_bought.append(self.investment_amount / coin_data.loc[actions.index[i]]['Close'])
+
+        # investments_data = {
+        #     Investments.USD_AMOUNT_INVESTED: usd_invested,
+        #     Investments.COIN_AMOUNT_INVESTED: num_coins_bought
+        # }
+        # return Investments(actions.index, investments_data)
