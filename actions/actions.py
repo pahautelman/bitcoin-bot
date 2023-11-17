@@ -29,6 +29,11 @@ class Actions(DataFrame):
 
         super().__init__(index=index, data=data, columns=[Actions.ACTION])
 
+# TODO: to implement margins, you can add class Investment which has:
+#   @getValue(coin_value) which calculates how much value is invested with the given coin_price
+#       - IE: normal investment = usd_value + coin_amount * coin_value
+#       - IE: margin investment = usd_value +/- coin_amount * coin_value
+#   => profit of investments calculates easy the profit made over time
 class Investments(DataFrame):
     """
     Class represents a list of investments.

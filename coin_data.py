@@ -1,23 +1,50 @@
-import yfinance as yf
 import matplotlib.pyplot as plt
+import ccxt
+import pandas as pd
 
 from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple, Investments
 
-def get_coin_data(coin: str, interval: str, period: str) -> DataFrame:
+
+def get_coin_data(coin: str, timestamp: str) -> DataFrame:
     """
-    Get the coin data from Yahoo Finance API
+    Get the coin data from binance exchange.
 
     Args:
         coin (str): The coin to get the data for
-        interval (str): The interval to get the data for
-        period (str): The period to get the data for
+        timestamp (str): The timestamp to get the data for (1m, 1h, 1d, etc)
 
     Returns:
         DataFrame: The coin data
     """
-    coin_data = yf.Ticker(coin).history(interval=interval, period=period)
-    return coin_data
+    exchange = ccxt.binance()
+
+    exchange.load_markets()
+
+    # {'1s', '1m', '3m','5m', '15m','30m','1h','2h','4h',6h',8h,'12h',1d', '3d', '1w', '1M'}
+    # print(exchange.timeframes)
+    data = exchange.fetch_ohlcv(coin, timeframe=timestamp)
+    
+    # data = exchange.fetch_ohlcv(coin)
+    
+    # params = {
+    #     'price': 'mark',
+    #     'until': 0,
+    # }
+    # :param str [params.price]: "mark" or "index" for mark price and index price candles
+    # :param int [params.until]: timestamp in ms of the latest candle to fetch
+    # :param boolean [params.paginate]: default False, when True will automatically paginate by calling self endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
+    # data = exchange.fetch_ohlcv(
+    #     coin, 
+    #     timeframe='str timeframe: the length of time each candle represents', 
+    #     since='int [since]: timestamp in ms of the earliest candle to fetch',
+    #     params=params
+    # )
+    df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'Close', 'volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df.set_index('timestamp', inplace=True)
+    return df
+
 
 def plot_actions(coin_data: DataFrame, actions: Actions, coin: str) -> None:
     """
@@ -42,7 +69,7 @@ def plot_actions(coin_data: DataFrame, actions: Actions, coin: str) -> None:
 
     plt.scatter(buys.index, coin_data.loc[buys.index]['Close'], label="Buy's", marker='^', color='green', s=80)
     plt.scatter(sells.index, coin_data.loc[sells.index]['Close'], label="Sell's", marker='v', color='red', s=80)
-
+    plt.grid(True)
     plt.legend()
     plt.show()
 
@@ -82,6 +109,8 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
         total_value.append(usd_value[i] + coins_value[i])
     
     plt.plot(coin_data.index, total_value, label='Total value', color='black')
+    plt.grid(True)
+    plt.legend()
     plt.show()
 
     # plot percentage of portfolio in USD and coins
@@ -89,17 +118,27 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
     plt.title(f'Percentage of portfolio in USD and {coin} value')
     plt.xlabel('Date')
     plt.ylabel('Percentage of portfolio')
-    plt.bar(
-        coin_data.index, 
-        [usd_value[i] / total_value[i] for i in range(len(total_value))], 
-        label='USD', 
-        color='green'
-    )
-    plt.bar(
+
+    # plot usd_value / total_value with background color green below the plot line, and red above
+    ratio = [usd_value[i] / total_value[i] for i in range(len(total_value))]
+
+    plt.plot(coin_data.index, ratio, label='USD value portfolio percentage', color='black')
+    plt.fill_between(
         coin_data.index,
-        [coins_value[i] / total_value[i] for i in range(len(total_value))],
-        bottom=[usd_value[i] / total_value[i] for i in range(len(total_value))],
-        label=f'{coin} value',
-        color='red'
+        ratio,
+        [1 for _ in range(len(ratio))],
+        interpolate=True,
+        color='red',
+        alpha=0.5
     )
+    plt.fill_between(
+        coin_data.index,
+        ratio,
+        [0 for _ in range(len(ratio))],
+        interpolate=True,
+        color='green',
+        alpha=0.5
+    )
+    plt.grid(True)
+    plt.legend()
     plt.show()
