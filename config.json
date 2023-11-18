@@ -1,14 +1,14 @@
 {
     "coin": {
-        "value": "BTC-USD",
-        "description": "Coin symbol to be used with yfinance.Ticker. Find supported coins on the https://finance.yahoo.com/ website"
+        "value": "BTC/USDT",
+        "description": "An uppercase string code representation of a particular trading pair or instrument. This is usually written as BaseCurrency/QuoteCurrency with a slash as in BTC/USD, LTC/CNY or ETH/EUR, etc. Symbols are used to reference markets within the ccxt library."
     },
     "interval": {
-        "value": "5m",
+        "value": "1h",
         "description": "Interval between each ticker data point."
     },
     "period": {
-        "value": "59d",
+        "value": "729d",
         "description": "Period of time that specifies the time interval to be used when fetching data: [period, currentTime]. Possible values are: [d, mo, y, max]"
     }, 
     "portfolio_size": {
