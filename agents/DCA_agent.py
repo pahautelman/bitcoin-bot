@@ -26,13 +26,20 @@ class DCA_agent(Agent):
         Returns:
             Actions: The actions to take
         """
-        action_date = []
-        actions = []
+        action_date = coin_data.index
+        actions = [ActionSimple.HOLD for _ in range(len(coin_data))]
+        indicator_values = [0 for _ in range(len(coin_data))]
         for i in range(0, len(coin_data), self.investment_interval):
-            action_date.append(coin_data.index[i])
-            actions.append(ActionSimple.BUY)
-        
-        return Actions(index=action_date, data={Actions.ACTION: actions})
+            actions[i] = ActionSimple.BUY
+            indicator_values[i] = 1
+
+        return Actions(
+            index=action_date, 
+            data={
+                Actions.ACTION: actions, 
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
+        )
 
     def get_investments(self, coin_data: DataFrame) -> Investments:
         """
