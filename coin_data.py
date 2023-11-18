@@ -142,3 +142,24 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
     plt.grid(True)
     plt.legend()
     plt.show()
+
+    # plot profit and coin crease over time
+    plt.figure(figsize=(20, 10))
+    plt.title(f'Profit and {coin} value over time')
+    plt.xlabel('Date')
+    plt.ylabel('Change %')
+
+    coin_diff_percentage = []
+    for i in range(len(coin_data)):
+        coin_diff_percentage.append((coin_data.iloc[i]['Close'] - coin_data.iloc[0]['Close']) / coin_data.iloc[0]['Close'])
+
+    plt.plot(coin_data.index, coin_diff_percentage, label=f'{coin} value change', color='black')
+
+    profit = []
+    for i in range(len(total_value)):
+        profit.append((total_value[i] - total_value[0]) / total_value[0])
+    
+    plt.plot(coin_data.index, profit, label='Profit', color='blue')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
