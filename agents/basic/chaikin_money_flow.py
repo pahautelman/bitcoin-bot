@@ -29,6 +29,15 @@ class CmfAgent(Agent):
         """
         self.window = window
 
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
+
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements CMF strategy.
@@ -55,10 +64,26 @@ class CmfAgent(Agent):
             indicator_values.append(indicator_strength)
 
         return Actions(
-            action_date=action_date,
-            actions=actions,
-            indicator_values=indicator_values
+            index=action_date,
+            data={
+                Actions.ACTION: actions,
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
         )
+    
+    CMF = 'cmf'
+
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Method that returns the CMF indicator.
+
+        Args:
+            coin_data (DataFrame): The coin data
+        
+        Returns:
+            DataFrame: The CMF indicator
+        """
+        return self._get_cmf(coin_data, self.window)
     
     def _get_cmf(self, coin_data: DataFrame, window: int) -> DataFrame:
         """
@@ -68,10 +93,16 @@ class CmfAgent(Agent):
             coin_data (DataFrame): The coin data
             window (int): The window size for the CMF
         """
-        mfm = ((coin_data['close'] - coin_data['low']) - (coin_data['high'] - coin_data['close'])) / (coin_data['high'] - coin_data['low'])
-        mfv = mfm * coin_data['volume']
-        cmf = mfv.rolling(window).sum() / coin_data['volume'].rolling(window).sum()
-        return cmf
+        mfm = ((coin_data['Close'] - coin_data['Low']) - (coin_data['High'] - coin_data['Close'])) / (coin_data['High'] - coin_data['Low'])
+        mfv = mfm * coin_data['Volume']
+        cmf = mfv.rolling(window).sum() / coin_data['Volume'].rolling(window).sum()
+        
+        return DataFrame(
+            index=coin_data.index,
+            data={
+                self.CMF: cmf
+            }
+        )
     
     def _get_simple_action(self, coin_data: DataFrame, cmf: DataFrame) -> (ActionSimple, float):
         """
@@ -85,5 +116,5 @@ class CmfAgent(Agent):
             ActionSimple: Always HOLD
             int: The CMF value
         """
-        return ActionSimple.HOLD, cmf.iloc[-1]
+        return ActionSimple.HOLD, cmf.iloc[-1][self.CMF]
     

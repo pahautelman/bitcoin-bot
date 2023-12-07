@@ -46,6 +46,15 @@ class SoAgent(Agent):
         self.oversold = oversold
         self.overbought = overbought
 
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
+
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements SO strategy.
@@ -74,13 +83,29 @@ class SoAgent(Agent):
             indicator_values.append(indicator_strength)
 
         return Actions(
-            action_date=action_date,
-            actions=actions,
-            indicator_values=indicator_values
+            index=action_date,
+            data={
+                Actions.ACTION: actions,
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
         )
     
     SO = 'so'
 
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Function returns the SO for the given coin data.
+
+        Args:
+            coin_data (DataFrame): The coin data
+
+        Returns:
+            DataFrame: The SO
+        """
+        so = self._get_so(coin_data, self.window, self.smoothing_window)
+        so[self.SO] = so[self.SO].apply(lambda x: (x - 50) / 50)
+        return so
+    
     def _get_so(self, coin_data: DataFrame, window: int, smoothing_window: int) -> DataFrame:
         """
         Function calculates the slow stochastic oscillator (SO) for the coin data.
@@ -93,12 +118,19 @@ class SoAgent(Agent):
         Returns:
             DataFrame: The SO for the coin data
         """
-        highest_high = coin_data['high'].rolling(window=window).max()
-        lowest_low = coin_data['low'].rolling(window=window).min()
+        # 1. Calculate the highest high and lowest low over the window size.
+        # highest_high = coin_data['High'].rolling(window=window).max()
+        # print(highest_high.size)
+        
+
+
+        highest_high = coin_data['High'].rolling(window=window).max()
+        lowest_low = coin_data['Low'].rolling(window=window).min()
         so = 100 * (coin_data['Close'] - lowest_low) / (highest_high - lowest_low)
         so = so.rolling(window=smoothing_window).mean()
 
         return DataFrame(
+            index=coin_data.index,
             data={
                 self.SO: so
             }

@@ -24,7 +24,7 @@ class BbAgent(Agent):
         2. Sell when the price touches or exceeds the upper BB and then falls back inside the bands.
     """
 
-    def __init__(self, bb_window: int, bb_std: int):
+    def __init__(self, bb_window: int = 20, bb_std: int = 2):
         """
         Args:
             bb_window (int): The window size for the BB
@@ -32,6 +32,15 @@ class BbAgent(Agent):
         """
         self.bb_window = bb_window
         self.bb_std = bb_std
+
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -60,13 +69,31 @@ class BbAgent(Agent):
             actions.append(action)
             indicator_values.append(indicator_strength)
 
-        return Actions(index=action_date, data={Actions.ACTION: actions, Actions.INDICATOR_STRENGTH: indicator_values})
+        return Actions(
+            index=action_date, 
+            data={
+                Actions.ACTION: actions, 
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
+        )
 
     UPPER_BAND = 'upper_band'
     LOWER_BAND = 'lower_band'
     ROLLING_MEAN = 'rolling_mean'
 
-    def _get_bollinger_bands(self, coin_data: DataFrame, window: int=20, std: int=2) -> DataFrame:
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Method that returns the Bollinger bands indicator.
+
+        Args:
+            coin_data (DataFrame): The coin data
+
+        Returns:
+            DataFrame: The Bollinger bands
+        """
+        return self._get_bollinger_bands(coin_data, window=self.bb_window, std=self.bb_std)
+
+    def _get_bollinger_bands(self, coin_data: DataFrame, window: int, std: int) -> DataFrame:
         """
         Function calculates the bollinger bands.
 
@@ -84,11 +111,14 @@ class BbAgent(Agent):
         upper_band = rolling_mean + (rolling_std * std)
         lower_band = rolling_mean - (rolling_std * std)
 
-        return DataFrame(data={
-            self.UPPER_BAND: upper_band,
-            self.LOWER_BAND: lower_band,
-            self.ROLLING_MEAN: rolling_mean
-        })
+        return DataFrame(
+            index=coin_data.index,
+            data={
+                self.UPPER_BAND: upper_band,
+                self.LOWER_BAND: lower_band,
+                self.ROLLING_MEAN: rolling_mean
+            }
+        )
 
     def _get_simple_action(self, coin_data: DataFrame, bands: DataFrame) -> (ActionSimple, int):
         """
@@ -115,6 +145,7 @@ class BbAgent(Agent):
             elif coin_data.iloc[-2]['Close'] < bands.iloc[-2][self.LOWER_BAND]:
                 # then buy
                 action = ActionSimple.BUY
+            
             # calculate indicator strength
             if coin_data.iloc[-1]['Close'] > bands.iloc[-1][self.ROLLING_MEAN]:
                 indicator_strength = -(coin_data.iloc[-1]['Close'] - bands.iloc[-1][self.ROLLING_MEAN]) / (bands.iloc[-1][self.UPPER_BAND] - bands.iloc[-1][self.ROLLING_MEAN]) 

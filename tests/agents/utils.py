@@ -26,7 +26,21 @@ def get_test_coin_data() -> DataFrame:
         end_date=Timestamp('2023-11-24')
     )
 
-def plot_agent_actions(
+def get_short_test_coin_data() -> DataFrame:
+    """
+    Get hourly BTC data for the time interval 2023-09-24 - 2023-09-30.
+
+    Returns:
+        DataFrame: The BTC data
+    """
+    return get_coin_data(
+        coin='BTC/USDT',
+        timeframe='1h',
+        start_date=Timestamp('2023-09-24'),
+        end_date=Timestamp('2023-09-30')
+    )
+
+def plot_indicator_strength(
     coin_data: DataFrame,
     agent: Agent,
     overlap: bool = False 
@@ -42,26 +56,25 @@ def plot_agent_actions(
     actions = agent.act(coin_data)
 
     plt.figure(figsize=(20, 10))
-    plt.title(f'{agent.name} indicator strength')
-    plt.plot(coin_data.index, coin_data['Close'])
+    plt.title(f'{agent.__class__.__name__} indicator strength')
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
+    plt.plot(coin_data.index, coin_data['Close'])
+    
+    if not overlap:
+        plt.grid(True)
+        plt.show()
 
-    if overlap:
-        # plot the agent actions *under* the coin plot
-        # plt.show()
-
-        # plt.figure(figsize=(20, 10))
-        # plt.title(f'{agent.name} indicator strength')
-        # plt.xlabel('Date')
-        # plt.ylabel('Indicator strength')
-        # plt.grid(True)
-
-        plt.plot(actions.index, actions.data[Actions.INDICATOR_STRENGTH])
+        plt.figure(figsize=(20, 10))
+        plt.title(f'{agent.__class__.__name__} indicator strength')
+        plt.xlabel('Date')
+        plt.ylabel('Indicator strength')
+        plt.plot(actions.index, actions[Actions.INDICATOR_STRENGTH])
     else:
+        # TODO: check this shyte
         # plot the agent actions on the same plot as the coin
         plt.twinx()
-        plt.plot(actions.index, actions.data[Actions.INDICATOR_STRENGTH], color='red')
+        plt.plot(actions.index, actions[Actions.INDICATOR_STRENGTH], color='red')
 
     plt.grid(True)
     plt.show()
@@ -89,22 +102,6 @@ def plot_indicator(
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
 
-
-
-    # if overlap:
-    #     # plot the indicator on the same plot as the coin
-    #     plt.twinx()
-    #     for indicator_name in indicator_names:
-    #         plt.plot(indicators.index, indicators.data[indicator_name], label=indicator_name)
-    # else:
-        # plot the indicator *under* the coin plot
-        # plt.show()
-
-        # plt.figure(figsize=(20, 10))
-        # plt.title(f'{indicator.name} indicator')
-        # plt.xlabel('Date')
-        # plt.ylabel('Indicator strength')
-        # plt.grid(True)
     if not overlap:
         plt.grid(True)
         plt.show()

@@ -32,6 +32,15 @@ class ObvAgent(Agent):
         """
         self.window = window
 
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return False
+
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements OBV strategy.
@@ -42,8 +51,7 @@ class ObvAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        obv = self._get_obv(coin_data)
-        obv_sma = self._get_sma(obv, self.window)
+        obv = self._get_obv(coin_data, self.window)
 
         action_date = coin_data.index
         actions = []
@@ -54,20 +62,23 @@ class ObvAgent(Agent):
                 indicator_values.append(0)
                 continue
 
-            action, indicator_strength = self._get_simple_action(coin_data.iloc[:i + 1], obv_sma.iloc[:i + 1])
+            action, indicator_strength = self._get_simple_action(coin_data.iloc[:i + 1], obv.iloc[:i + 1])
             actions.append(action)
             indicator_values.append(indicator_strength)
 
         return Actions(
-            action_date=action_date,
-            actions=actions,
-            indicator_values=indicator_values,
-            indicator_name='OBV'
+            index=action_date,
+            data={
+                Actions.ACTION: actions,
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
         )
     
-    def _get_obv(self, coin_data: DataFrame) -> DataFrame:
+    OBV = 'obv'
+
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
-        Function calculates the OBV for the given coin data.
+        Function returns the OBV for the given coin data.
 
         Args:
             coin_data (DataFrame): The coin data
@@ -75,12 +86,37 @@ class ObvAgent(Agent):
         Returns:
             DataFrame: The OBV
         """
-        obv = coin_data['close'].diff()
-        obv[obv > 0] = coin_data['volume']
-        obv[obv < 0] = -coin_data['volume']
+        obv = self._get_obv(coin_data, sma_window=self.window)
+        # apply pct_change to the OBV SMA
+        obv[self.OBV] = obv[self.OBV].pct_change()
+        # limit the values to [-1, 1]
+        obv[self.OBV] = obv[self.OBV].clip(lower=-1, upper=1) 
+        return obv
+    
+    def _get_obv(self, coin_data: DataFrame, sma_window: int) -> DataFrame:
+        """
+        Function calculates the OBV for the given coin data.
+
+        Args:
+            coin_data (DataFrame): The coin data
+            sma_window (int): The window size for the OBV SMA
+
+        Returns:
+            DataFrame: The OBV
+        """
+        obv = coin_data['Close'].diff()
+        obv[obv > 0] = coin_data['Volume']
+        obv[obv < 0] = -coin_data['Volume']
         obv[obv == 0] = 0
         obv = obv.cumsum()
-        return obv
+        obv = self._get_sma(obv, window=sma_window)
+
+        return DataFrame(
+            index=coin_data.index,
+            data={
+                self.OBV: obv
+            }
+        )
     
     def _get_sma(self, obv: DataFrame, window: int) -> DataFrame:
         """

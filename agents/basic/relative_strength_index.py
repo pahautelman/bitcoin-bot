@@ -42,6 +42,15 @@ class RsiAgent(Agent):
         self.oversold = oversold
         self.overbought = overbought
 
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
+
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements RSI strategy.
@@ -78,6 +87,19 @@ class RsiAgent(Agent):
 
     RSI = 'rsi'
 
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Method that returns the RSI for the given coin data.
+
+        Args:
+            coin_data (DataFrame): The coin data
+
+        Returns:
+            DataFrame: The RSI
+        """
+        rsi = self._get_rsi(coin_data, self.window)
+        return (rsi - 50) / 50 
+
     def _get_rsi(self, coin_data: DataFrame, window: int=14) -> DataFrame:
         """
         Function calculates the RSI.
@@ -96,9 +118,12 @@ class RsiAgent(Agent):
         ema_down = down.ewm(com=window - 1, adjust=True, min_periods=window).mean()
         rs = ema_up / ema_down
         rsi = 100 - (100 / (1 + rs))
-        return DataFrame(data={
-            self.RSI: rsi
-        })
+        return DataFrame(
+            index=coin_data.index,
+            data={
+                self.RSI: rsi
+            }
+        )
 
     def _get_simple_action(self, coin_data: DataFrame, rsi: DataFrame) -> (ActionSimple, int):
         """

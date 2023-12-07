@@ -18,6 +18,7 @@ class AtrAgent(Agent):
 
             If previous ATR is not available, then ATR = 1/window * \sum_{i=1}^{window} TR_i
 
+    ATR is not normalized, its value is greater than 0.
     ATR is typically used as a stop-loss indicator, and to determine the size of a position.
     """
 
@@ -27,6 +28,15 @@ class AtrAgent(Agent):
             window (int): The window size for the ATR
         """
         self.window = window
+
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return False
     
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -54,15 +64,28 @@ class AtrAgent(Agent):
             indicator_values.append(indicator_strength)
 
         return Actions(
-            action_date=action_date,
-            actions=actions,
-            indicator_values=indicator_values,
-            indicator_name='ATR'
+            index=action_date, 
+            data={
+                Actions.ACTION: actions,
+                Actions.INDICATOR_STRENGTH: indicator_values
+            }
         )
     
     ATR = 'atr'
 
-    def _get_atr(self, coin_data: DataFrame, window: int = 14) -> DataFrame:
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Function gets the ATR.
+
+        Args:
+            coin_data (DataFrame): The coin data
+        
+        Returns:
+            DataFrame: The ATR
+        """
+        return self._get_atr(coin_data, self.window)
+
+    def _get_atr(self, coin_data: DataFrame, window) -> DataFrame:
         """
         Function calculates the ATR.
 
@@ -78,25 +101,28 @@ class AtrAgent(Agent):
         tr = []
         atr = []
         for i in range(window):
-            high = coin_data['high'].iloc[i]
-            low = coin_data['low'].iloc[i]
+            high = coin_data['High'].iloc[i]
+            low = coin_data['Low'].iloc[i]
             if i == 0:
-                close_prev = coin_data['close'].iloc[i]
+                close_prev = coin_data['Close'].iloc[i]
             else:
-                close_prev = coin_data['close'].iloc[i-1]
+                close_prev = coin_data['Close'].iloc[i-1]
             tr.append(max(high-low, abs(high-close_prev), abs(low-close_prev)))
-            atr.append(0)
+            if i != window-1:
+                atr.append(0)
+            else:
+                atr.append(sum(tr)/window)
 
         # calculate ATR
-        atr.append(sum(tr)/window)
-        for i in range(window+1, len(coin_data)):
-            high = coin_data['high'].iloc[i]
-            low = coin_data['low'].iloc[i]
-            close_prev = coin_data['close'].iloc[i-1]
+        for i in range(window, len(coin_data)):
+            high = coin_data['High'].iloc[i]
+            low = coin_data['Low'].iloc[i]
+            close_prev = coin_data['Close'].iloc[i-1]
             tr.append(max(high-low, abs(high-close_prev), abs(low-close_prev)))
             atr.append((atr[i-1]*(window-1) + tr[i]) / window)
 
         return DataFrame(
+            index=coin_data.index,
             data={
                 self.ATR: atr
             }

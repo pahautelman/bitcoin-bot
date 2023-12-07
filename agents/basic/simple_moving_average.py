@@ -11,12 +11,21 @@ class SmaAgent(Agent):
     Sell when the price crosses below the SMA.
     """
 
-    def __init__(self, window: int):
+    def __init__(self, window: int = 50):
         """
         Args:
             window (int): The window size for the SMA
         """
         self.window = window
+
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return False
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -55,6 +64,18 @@ class SmaAgent(Agent):
 
     SMA = 'sma'
 
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Function returns the SMA for the given coin data.
+
+        Args:
+            coin_data (DataFrame): The coin data
+
+        Returns:
+            DataFrame: The SMA
+        """
+        return self._get_sma(coin_data, self.window)
+
     def _get_sma(self, coin_data: DataFrame, window: int=14) -> DataFrame:
         """
         Function calculates the SMA.
@@ -67,6 +88,7 @@ class SmaAgent(Agent):
             DataFrame: The SMA
         """
         return DataFrame(
+            index=coin_data.index,
             data={
                 self.SMA: coin_data['Close'].rolling(window=window).mean()
             }

@@ -78,9 +78,8 @@ class AdxAgent(EmaAgent):
         return Actions(
             index=action_date, 
             data={
-                'adx': adx,
-                'indicator_values': indicator_values,
-                'actions': actions
+                Actions.ACTION: actions,
+                Actions.INDICATOR_STRENGTH: indicator_values
             }
         )
 
@@ -119,24 +118,21 @@ class AdxAgent(EmaAgent):
         dm = dm.to_frame().join(dm_neg.to_frame())
 
         # Calculate the directional indicators, +DI and -DI
-        di_pos = self._get_ema(dm['dm'], window)
-        di_neg = self._get_ema(dm['dm_neg'], window)
-        di_pos.rename(columns={self.EMA: 'di_pos'}, inplace=True)
-        di_neg.rename(columns={self.EMA: 'di_neg'}, inplace=True)
-        di = di_pos.join(di_neg)
+        di_pos = dm['dm'].ewm(span=window, adjust=False).mean()
+        di_neg = dm['dm_neg'].ewm(span=window, adjust=False).mean()
+        di = di_pos.to_frame().join(di_neg.to_frame())
 
-        # TODO: check math
         # Calculate the average directional index, ADX
-        adx = (di['di_pos'] - di['di_neg']).abs()
-        adx = adx / (di['di_pos'] + di['di_neg'])
-        adx = self._get_ema(adx, window)
+        adx = (di['dm'] - di['dm_neg']).abs()
+        adx = adx / (di['dm'] + di['dm_neg'])
+        adx = adx.ewm(span=window, adjust=False).mean()
         adx = adx.apply(lambda x: abs(x))
         adx = adx.apply(lambda x: 100 * x)
 
         return DataFrame(
             index=adx.index,
             data={
-                self.ADX: adx[self.EMA]
+                self.ADX: adx
             }
         )
 
@@ -153,10 +149,10 @@ class AdxAgent(EmaAgent):
         """
         action = ActionSimple.HOLD
         # if ADX crosses above threshold, buy
-        if adx.iloc[-1] > self.threshold and adx.iloc[-2] < self.threshold:
+        if adx.iloc[-1][self.ADX] > self.threshold and adx.iloc[-2][self.ADX] < self.threshold:
             action = ActionSimple.BUY
-        elif adx.iloc[-1] < -self.threshold and adx.iloc[-2] > -self.threshold:
+        elif adx.iloc[-1][self.ADX] < -self.threshold and adx.iloc[-2][self.ADX] > -self.threshold:
             action = ActionSimple.SELL
         
-        indicator_strength = adx.iloc[-1] / 100 
+        indicator_strength = (adx.iloc[-1][self.ADX] - 50) / 50
         return action, indicator_strength

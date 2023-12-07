@@ -25,6 +25,15 @@ class SentimentAnalysisAgent(Agent):
             raise Exception(f'Coin {coin} not supported.')
         self.coin = coin
 
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
+
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements sentiment analysis strategy.
@@ -55,7 +64,21 @@ class SentimentAnalysisAgent(Agent):
     
     FEAR_AND_GREED = 'fear_and_greed'
 
-    def _get_fear_and_greed_index(self, coin_data : DataFrame) -> DataFrame:
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        """
+        Function returns the fear and greed index for the given coin data.
+
+        Args:
+            coin_data (DataFrame): The coin data
+
+        Returns:
+            DataFrame: The fear and greed index
+        """
+        ind = self._get_fear_and_greed_index(coin_data)
+        print(ind)
+        return ind
+
+    def _get_fear_and_greed_index(self, coin_data: DataFrame) -> DataFrame:
         """
         Function gets the fear and greed index from alternative.me.
         
@@ -69,8 +92,8 @@ class SentimentAnalysisAgent(Agent):
         last_date = coin_data.index[-1]
         date_format = '%Y-%m-%d %H:%M:%S'
 
-        # number of days between current time and first date
-        limit = (datetime.now() - first_date).days + 2  # add 2 to account for first date and the time before first date
+        # Number of days between current time and first date
+        limit = (datetime.now() - first_date).days + 2  # Add 2 to account for first date and the time before first date
 
         api_url = f'https://api.alternative.me/fng/?limit={limit}&format=json'
         response = requests.get(api_url)
@@ -78,6 +101,8 @@ class SentimentAnalysisAgent(Agent):
 
         if 'data' not in data:
             raise Exception('No data in response. Error: ' + data.get('metadata', {}).get('error', ''))
+
+        data['data'].reverse()  # Put oldest date first
 
         index_data = []
         for entry in data['data']:
@@ -96,18 +121,6 @@ class SentimentAnalysisAgent(Agent):
                 raise Exception('Value is None at timestamp ' + timestamp)
             
             index_data.append({'Timestamp': date, 'Value': int(value)})
-
-        index_data.reverse()    # put oldest date first
-
-        # set value for dates inside coin_data
-        # get fear and greed value for first date before coin_data.index[0]
-        # TODO: if coin_data.index[0] is before the first date in index_data, then value will be None
-        first_date = coin_data.index[0]
-        index_data_index = -1
-        index_data_value = None
-        # while index_data_index + 1 < len(index_data) and index_data[index_data_index + 1]['Timestamp'] <= first_date:
-        #     index_data_index += 1
-        # index_data_value = index_data[index_data_index]['Value']
 
         fear_and_greed_dates = []
         fear_and_greed_values = []
