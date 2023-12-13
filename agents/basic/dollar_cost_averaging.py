@@ -2,9 +2,11 @@ from agents.agent import Agent
 from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple, Investments
 
-class DCA_agent(Agent):
+class DcaAgent(Agent):
     """
     Dollar Cost Averaging agent.
+
+    Invests a fixed amount of money at regular intervals.
     """
 
     def __init__(self, investment_interval: int, investment_amount: float):
@@ -67,18 +69,3 @@ class DCA_agent(Agent):
                 continue
             investments.buy_asset(actions.index[i], self.investment_amount, coin_data.loc[actions.index[i]]['Close'])
         return investments
-
-
-        # actions = self.act(coin_data)
-        # total_invested = len(actions) * self.investment_amount
-        # usd_invested = [total_invested - self.investment_amount * i  for i in range(1, len(actions) + 1)]
-        # num_coins_bought = []
-        # for i in range(len(actions)):
-        #     # TODO: fix this
-        #     num_coins_bought.append(self.investment_amount / coin_data.loc[actions.index[i]]['Close'])
-
-        # investments_data = {
-        #     Investments.USD_AMOUNT_INVESTED: usd_invested,
-        #     Investments.COIN_AMOUNT_INVESTED: num_coins_bought
-        # }
-        # return Investments(actions.index, investments_data)
