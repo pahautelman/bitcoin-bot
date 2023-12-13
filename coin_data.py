@@ -31,6 +31,8 @@ def get_coin_data(coin: str, timeframe: str, start_date: Timestamp = None, end_d
         ohlcv_data = exchange.fetch_ohlcv(coin, timeframe=timeframe)
     else:
         start_timestamp_ms = int(start_date.timestamp() * 1000)
+        end_timestamp_ms = None
+        ms_per_timeframe = None
         if end_date is not None:
             end_timestamp_ms = int(end_date.timestamp() * 1000)
             ms_per_timeframe = _get_ms_per_timeframe(timeframe)
