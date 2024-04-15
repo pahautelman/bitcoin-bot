@@ -16,10 +16,102 @@ def get_coin_data(coin: str, interval: str, period: str) -> DataFrame:
     Returns:
         DataFrame: The coin data
     """
-    coin_data = yf.Ticker(coin).history(interval=interval, period=period)
-    return coin_data
+    exchange = ccxt.binance()
+    exchange.load_markets()
 
-def plot_actions(coin_data: DataFrame, actions: Actions, coin: str) -> None:
+    # print(exchange.timeframes)
+    # > {'1s', '1m', '3m','5m', '15m','30m','1h','2h','4h',6h',8h,'12h',1d', '3d', '1w', '1M'}
+    if start_date is None and end_date is None:
+        ohlcv_data = exchange.fetch_ohlcv(coin, timeframe=timeframe)
+    else:
+        start_timestamp_ms = int(start_date.timestamp() * 1000)
+        end_timestamp_ms = None
+        if end_date is not None:
+            end_timestamp_ms = int(end_date.timestamp() * 1000)
+            ms_per_timeframe = _get_ms_per_timeframe(timeframe)
+
+        if end_date is None:
+            limit = 1000
+        else:
+            limit = min(
+                1000,
+                math.ceil((end_timestamp_ms - start_timestamp_ms) / ms_per_timeframe)
+            )
+
+        ohlcv_data = []
+        while True:
+            ohlcv = exchange.fetch_ohlcv(
+                coin,
+                timeframe=timeframe,
+                since=start_timestamp_ms,
+                limit=limit
+            )
+
+            if not ohlcv:
+                break
+
+            ohlcv_data.extend(ohlcv)
+
+            start_timestamp_ms = ohlcv[-1][0] + 1
+            if end_timestamp_ms is not None:
+                limit = min(
+                    limit,
+                    math.ceil((end_timestamp_ms - start_timestamp_ms) / ms_per_timeframe)
+                )
+                if limit <= 0:
+                    break
+    
+    df = pd.DataFrame(ohlcv_data, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='ms')
+    df.set_index('Timestamp', inplace=True)
+    return df
+
+def _get_ms_per_timeframe(timeframe: str) -> int:
+    """
+    Function returns the amount of milliseconds per timeframe.
+
+    Args:
+        timeframe (str): The timeframe to get the amount of milliseconds for.
+
+    Returns:
+        int: The amount of milliseconds per timeframe.
+    """
+    if timeframe == '1s':
+        return 1000
+    elif timeframe == '1m':
+        return 60 * 1000
+    elif timeframe == '3m':
+        return 3 * 60 * 1000
+    elif timeframe == '5m':
+        return 5 * 60 * 1000
+    elif timeframe == '15m':
+        return 15 * 60 * 1000
+    elif timeframe == '30m':
+        return 30 * 60 * 1000
+    elif timeframe == '1h':
+        return 60 * 60 * 1000
+    elif timeframe == '2h':
+        return 2 * 60 * 60 * 1000
+    elif timeframe == '4h':
+        return 4 * 60 * 60 * 1000
+    elif timeframe == '6h':
+        return 6 * 60 * 60 * 1000
+    elif timeframe == '8h':
+        return 8 * 60 * 60 * 1000
+    elif timeframe == '12h':
+        return 12 * 60 * 60 * 1000
+    elif timeframe == '1d':
+        return 24 * 60 * 60 * 1000
+    elif timeframe == '3d':
+        return 3 * 24 * 60 * 60 * 1000
+    elif timeframe == '1w':
+        return 7 * 24 * 60 * 60 * 1000
+    elif timeframe == '1M':
+        return 30 * 24 * 60 * 60 * 1000
+    else:
+        raise Exception('Timeframe not supported: ' + timeframe)
+
+def plot_actions(coin_data: DataFrame, actions: Actions, coin: str, agent_name: str) -> None:
     """
     Function plots the actions on the coin data.
 

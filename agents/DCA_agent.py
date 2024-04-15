@@ -2,7 +2,8 @@ from agents.agent import Agent
 from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple, Investments
 
-class DCA_agent(Agent):
+# TODO: fix
+class DcaAgent(Agent):
     """
     Dollar Cost Averaging agent.
     """
