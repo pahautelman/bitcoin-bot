@@ -1,17 +1,18 @@
-import yfinance as yf
 import matplotlib.pyplot as plt
+import ccxt
+import pandas as pd
 
 from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple, Investments
 
-def get_coin_data(coin: str, interval: str, period: str) -> DataFrame:
+
+def get_coin_data(coin: str, timestamp: str) -> DataFrame:
     """
-    Get the coin data from Yahoo Finance API
+    Get the coin data from binance exchange.
 
     Args:
         coin (str): The coin to get the data for
-        interval (str): The interval to get the data for
-        period (str): The period to get the data for
+        timestamp (str): The timestamp to get the data for (1m, 1h, 1d, etc)
 
     Returns:
         DataFrame: The coin data
@@ -134,7 +135,7 @@ def plot_actions(coin_data: DataFrame, actions: Actions, coin: str, agent_name: 
 
     plt.scatter(buys.index, coin_data.loc[buys.index]['Close'], label="Buy's", marker='^', color='green', s=80)
     plt.scatter(sells.index, coin_data.loc[sells.index]['Close'], label="Sell's", marker='v', color='red', s=80)
-
+    plt.grid(True)
     plt.legend()
     plt.show()
 
@@ -174,6 +175,8 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
         total_value.append(usd_value[i] + coins_value[i])
     
     plt.plot(coin_data.index, total_value, label='Total value', color='black')
+    plt.grid(True)
+    plt.legend()
     plt.show()
 
     # plot percentage of portfolio in USD and coins
@@ -181,17 +184,48 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
     plt.title(f'Percentage of portfolio in USD and {coin} value')
     plt.xlabel('Date')
     plt.ylabel('Percentage of portfolio')
-    plt.bar(
-        coin_data.index, 
-        [usd_value[i] / total_value[i] for i in range(len(total_value))], 
-        label='USD', 
-        color='green'
-    )
-    plt.bar(
+
+    # plot usd_value / total_value with background color green below the plot line, and red above
+    ratio = [usd_value[i] / total_value[i] for i in range(len(total_value))]
+
+    plt.plot(coin_data.index, ratio, label='USD value portfolio percentage', color='black')
+    plt.fill_between(
         coin_data.index,
-        [coins_value[i] / total_value[i] for i in range(len(total_value))],
-        bottom=[usd_value[i] / total_value[i] for i in range(len(total_value))],
-        label=f'{coin} value',
-        color='red'
+        ratio,
+        [1 for _ in range(len(ratio))],
+        interpolate=True,
+        color='red',
+        alpha=0.5
     )
+    plt.fill_between(
+        coin_data.index,
+        ratio,
+        [0 for _ in range(len(ratio))],
+        interpolate=True,
+        color='green',
+        alpha=0.5
+    )
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    # plot profit and coin crease over time
+    plt.figure(figsize=(20, 10))
+    plt.title(f'Profit and {coin} value over time')
+    plt.xlabel('Date')
+    plt.ylabel('Change %')
+
+    coin_diff_percentage = []
+    for i in range(len(coin_data)):
+        coin_diff_percentage.append((coin_data.iloc[i]['Close'] - coin_data.iloc[0]['Close']) / coin_data.iloc[0]['Close'])
+
+    plt.plot(coin_data.index, coin_diff_percentage, label=f'{coin} value change', color='black')
+
+    profit = []
+    for i in range(len(total_value)):
+        profit.append((total_value[i] - total_value[0]) / total_value[0])
+    
+    plt.plot(coin_data.index, profit, label='Profit', color='blue')
+    plt.grid(True)
+    plt.legend()
     plt.show()

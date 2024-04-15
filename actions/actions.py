@@ -14,21 +14,31 @@ class ActionSimple():
     SELL = 'SELL'
     HOLD = 'HOLD'
 
-# TODO: have int deciding the strength of the action
 class Actions(DataFrame):
     """
     Class represents a list of actions.
     Index is date of action.
+
+    Columns:
+        ACTION: The action to take
+        INDICATOR_STRENGTH: The strength of the indicator. 1 represents a bullish sentiment, -1 represents a bearish sentiment.
     """
 
     ACTION = 'ACTION'
+    INDICATOR_STRENGTH = 'INDICATOR_STRENGTH'   
+    COLUMNS = [ACTION, INDICATOR_STRENGTH]
 
     def __init__(self, index: List[Timestamp], data: Dict[str, List]):
-        if (list(data.keys()) != [Actions.ACTION]):
-            raise Exception(f'Invalid columns. Expected {[self.ACTION]} but received {list(data.keys())}')
+        if (list(data.keys()) != self.COLUMNS):
+            raise Exception(f'Invalid columns. Expected {self.COLUMNS} but received {list(data.keys())}')
 
-        super().__init__(index=index, data=data, columns=[Actions.ACTION])
+        super().__init__(index=index, data=data, columns=self.COLUMNS)
 
+# TODO: to implement margins, you can add class Investment which has:
+#   @getValue(coin_value) which calculates how much value is invested with the given coin_price
+#       - IE: normal investment = usd_value + coin_amount * coin_value
+#       - IE: margin investment = usd_value +/- coin_amount * coin_value
+#   => profit of investments calculates easy the profit made over time
 class Investments(DataFrame):
     """
     Class represents a list of investments.
