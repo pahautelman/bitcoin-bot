@@ -43,6 +43,9 @@ class BbAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.bb_window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -56,13 +59,13 @@ class BbAgent(Indicator):
         Returns:
             Actions: The actions to take
         """
-        bands = self._get_bollinger_bands(coin_data, window=self.bb_window, std=self.bb_std)
+        bands = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(0, len(coin_data)):
-            if i < self.bb_window:
+            if i < self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -131,27 +134,29 @@ class BbAgent(Indicator):
             ActionSimple: The action to take
             int: The indicator strength
         """
-        action = ActionSimple.HOLD
-        # if price is inside the bands
-        if bands.iloc[-1][self.LOWER_BAND] < coin_data.iloc[-1]['Close'] < bands.iloc[-1][self.UPPER_BAND]:
-            # and it previously was above the upper band
-            if coin_data.iloc[-2]['Close'] > bands.iloc[-2][self.UPPER_BAND]:
-                # then sell
+        current_price = coin_data.iloc[-1]['Close']
+        upper_band = bands.iloc[-1][self.UPPER_BAND]
+        lower_band = bands.iloc[-1][self.LOWER_BAND]
+        mean_band = bands.iloc[-1][self.ROLLING_MEAN]
+        previous_price = coin_data.iloc[-2]['Close']
+
+        if lower_band <= current_price <= upper_band:
+            if previous_price > upper_band:
                 action = ActionSimple.SELL
-            # if it previously was below the lower band
-            elif coin_data.iloc[-2]['Close'] < bands.iloc[-2][self.LOWER_BAND]:
-                # then buy
+            elif previous_price < lower_band:
                 action = ActionSimple.BUY
-            
-            # calculate indicator strength
-            if coin_data.iloc[-1]['Close'] > bands.iloc[-1][self.ROLLING_MEAN]:
-                indicator_strength = -(coin_data.iloc[-1]['Close'] - bands.iloc[-1][self.ROLLING_MEAN]) / (bands.iloc[-1][self.UPPER_BAND] - bands.iloc[-1][self.ROLLING_MEAN]) 
             else:
-                indicator_strength = (coin_data.iloc[-1]['Close'] - bands.iloc[-1][self.ROLLING_MEAN]) / (bands.iloc[-1][self.LOWER_BAND] - bands.iloc[-1][self.ROLLING_MEAN])
-        # if price is above the upper band
-        elif coin_data.iloc[-1]['Close'] >= bands.iloc[-1][self.UPPER_BAND]:
+                action = ActionSimple.HOLD
+
+            if current_price > mean_band:
+                indicator_strength = -(current_price - mean_band) / (upper_band - mean_band)
+            else:
+                indicator_strength = (current_price - mean_band) / (lower_band - mean_band)
+        elif current_price >= upper_band:
+            action = ActionSimple.SELL
             indicator_strength = -1
         else:
+            action = ActionSimple.BUY
             indicator_strength = 1
 
-        return action, indicator_strength     
+        return action, indicator_strength 

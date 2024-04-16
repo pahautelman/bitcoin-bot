@@ -41,6 +41,9 @@ class KoAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return 55
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -58,7 +61,7 @@ class KoAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= 55:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

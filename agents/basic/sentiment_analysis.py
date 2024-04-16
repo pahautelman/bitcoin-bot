@@ -12,7 +12,7 @@ class SentimentAnalysisAgent(Indicator):
     """
     Agent that implements sentiment analysis strategy.
 
-    Currently retrives the BTC fear-and-greed index from alternative.me.
+    Currently retrieves the BTC fear-and-greed index from alternative.me.
 
     Indicator strength is equal to the sentiment on a given day. Value between [-1, 1]
     """
@@ -43,6 +43,9 @@ class SentimentAnalysisAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return 0
 
     def act(self, coin_data: DataFrame) -> Actions:
         """

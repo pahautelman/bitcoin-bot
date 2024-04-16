@@ -42,6 +42,9 @@ class ObvAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -53,13 +56,13 @@ class ObvAgent(Indicator):
         Returns:
             Actions: The actions to take
         """
-        obv = self._get_obv(coin_data, self.window)
+        obv = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

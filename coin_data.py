@@ -1,12 +1,14 @@
-import matplotlib.pyplot as plt
 import ccxt
+import math
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from pandas.core.frame import DataFrame
+from pandas._libs.tslibs.timestamps import Timestamp
 from actions.actions import Actions, ActionSimple, Investments
 
 
-def get_coin_data(coin: str, timestamp: str) -> DataFrame:
+def get_coin_data(coin: str, timeframe: str = '1h', start_date: Timestamp = None, end_date: Timestamp = None) -> DataFrame:
     """
     Get the coin data from binance exchange.
 

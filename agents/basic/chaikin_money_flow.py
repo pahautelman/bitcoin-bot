@@ -38,6 +38,9 @@ class CmfAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -49,13 +52,13 @@ class CmfAgent(Indicator):
         Returns:
             Actions: The actions to take
         """
-        cmf = self._get_cmf(coin_data, self.window)
+        cmf = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

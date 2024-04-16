@@ -31,16 +31,21 @@ class RsiAgent(Indicator):
     def __init__(
             self, 
             window: int = 14, 
+            smoothing_window: int = 3,
             oversold: int = 30, 
             overbought: int = 70
         ):
         """
         Args:
             window (int): The window size for the RSI
+            smoothing_window (int): The smoothing window for the RSI
             oversold (int): The oversold threshold for the RSI
             overbought (int): The overbought threshold for the RSI
         """
+        assert window > smoothing_window, "window must be greater than smoothing_window"
+        assert oversold < overbought, "oversold must be less than overbought threshold"
         self.window = window
+        self.smoothing_window = smoothing_window
         self.oversold = oversold
         self.overbought = overbought
 
@@ -52,6 +57,9 @@ class RsiAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -71,7 +79,7 @@ class RsiAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -113,26 +121,13 @@ class RsiAgent(Indicator):
             DataFrame: The RSI
         """
         rsi = TA.RSI(coin_data, window)
+        rsi = rsi.rolling(window=self.smoothing_window).mean()
         return DataFrame(
             index=rsi.index,
             data={
                 self.RSI: rsi.values
             }
         )
-
-        # delta = coin_data['Close'].diff()
-        # up = delta.clip(lower=0)
-        # down = -1 * delta.clip(upper=0)
-        # ema_up = up.ewm(com=window - 1, adjust=True, min_periods=window).mean()
-        # ema_down = down.ewm(com=window - 1, adjust=True, min_periods=window).mean()
-        # rs = ema_up / ema_down
-        # rsi = 100 - (100 / (1 + rs))
-        # return DataFrame(
-        #     index=coin_data.index,
-        #     data={
-        #         self.RSI: rsi
-        #     }
-        # )
 
     def _get_simple_action(self, coin_data: DataFrame, rsi: DataFrame) -> Tuple[ActionSimple, int]:
         """

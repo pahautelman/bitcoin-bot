@@ -43,7 +43,7 @@ def get_short_test_coin_data() -> DataFrame:
 def plot_indicator_strength(
     coin_data: DataFrame,
     agent: Agent,
-    overlap: bool = False 
+    overlap: bool = False,
     ) -> None:
     """
     Function plots the coin price and the agent indicator strength.
@@ -86,17 +86,12 @@ def plot_indicator_strength(
         plt.legend()
         plt.show()
 
-    # else:
-    #     # TODO: check this shyte
-    #     # plot the agent actions on the same plot as the coin
-    #     plt.twinx()
-    #     plt.plot(actions.index, actions[Actions.INDICATOR_STRENGTH], color='red')
-
 def plot_indicator(
     coin_data: DataFrame,
     agent: Agent,
     indicator_names: list[str],
-    overlap: bool = False
+    overlap: bool = False,
+    overlap_indicators = False
     ) -> None:
     """
     Function plots the coin price and the indicator.
@@ -106,11 +101,15 @@ def plot_indicator(
         agent (Agent): The agent
         indicator_names (list[str]): The indicator DataFrame columns to plot on map
         overlap (bool): Whether to plot the indicator on the same plot as the coin
+        overlap_indicators (bool): Whether to plot the indicators on the same plot
     """
     indicators = agent.get_indicator(coin_data)        
 
     if not overlap:
-        fig, axs = plt.subplots(nrows=len(indicator_names) + 1, ncols=1, figsize=(20, 10*(len(indicator_names) + 1)))
+        if not overlap_indicators:
+            fig, axs = plt.subplots(nrows=len(indicator_names) + 1, ncols=1, figsize=(20, 10*(len(indicator_names) + 1)))
+        else:
+            fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(20, 10))
         fig.suptitle(f'Agent {agent.__class__.__name__}')
 
         # Plot coin data
@@ -124,10 +123,14 @@ def plot_indicator(
             # nan value should be plotted as -1
             indicators[indicator_name] = indicators[indicator_name].fillna(-1)
 
-            axs[i].plot(indicators.index, indicators[indicator_name], label=indicator_name)
-            axs[i].set_ylabel('Indicator value')
-            axs[i].grid(True)
-            axs[i].legend()
+            if not overlap_indicators:
+                index = i
+            else:
+                index = 1
+            axs[index].plot(indicators.index, indicators[indicator_name], label=indicator_name)
+            axs[index].set_ylabel('Indicator value')
+            axs[index].grid(True)
+            axs[index].legend()
 
         plt.xlabel('Date')
         plt.tight_layout()
@@ -145,3 +148,26 @@ def plot_indicator(
         plt.grid(True)
         plt.legend()
         plt.show()
+
+def plot_actions(coin_data: DataFrame, agent: Agent) -> None:
+    """
+    Function plots the coin price and the agent actions (BUY, SELL).
+
+    Args:
+        coin_data (DataFrame): The coin data
+        agent (Agent): The agent
+    """
+    actions = agent.act(coin_data)
+
+    plt.figure(figsize=(20, 10))
+    plt.title(f'{agent.__class__.__name__} actions')
+    plt.plot(coin_data.index, coin_data['Close'], label='Close Price', zorder=1)
+    
+    plt.scatter(actions.index[actions[Actions.ACTION] == 'BUY'], coin_data['Close'][actions[Actions.ACTION] == 'BUY'], color='green', marker='^', label='Buy signal', lw=0, zorder=2, s=100)
+    plt.scatter(actions.index[actions[Actions.ACTION] == 'SELL'], coin_data['Close'][actions[Actions.ACTION] == 'SELL'], color='red', marker='v', label='Sell signal', lw=0, zorder=2, s=100)
+    
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.grid(True)
+    plt.legend()
+    plt.show()

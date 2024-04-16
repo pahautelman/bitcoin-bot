@@ -48,6 +48,9 @@ class AdxAgent(EmaAgent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -68,7 +71,7 @@ class AdxAgent(EmaAgent):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -129,12 +132,15 @@ class AdxAgent(EmaAgent):
         Returns:
             (ActionSimple, int): The action and indicator strength
         """
+        current_adx = adx.iloc[-1][self.ADX]
+        previous_adx = adx.iloc[-2][self.ADX]
+
         action = ActionSimple.HOLD
         # if ADX crosses above threshold, buy
-        if adx.iloc[-1][self.ADX] > self.threshold and adx.iloc[-2][self.ADX] < self.threshold:
+        if current_adx > self.threshold and previous_adx < self.threshold:
             action = ActionSimple.BUY
-        elif adx.iloc[-1][self.ADX] < -self.threshold and adx.iloc[-2][self.ADX] > -self.threshold:
+        elif current_adx < -self.threshold and previous_adx > -self.threshold:
             action = ActionSimple.SELL
         
-        indicator_strength = (adx.iloc[-1][self.ADX] - 50) / 50
+        indicator_strength = current_adx / 100
         return action, indicator_strength

@@ -43,6 +43,8 @@ class SoAgent(Indicator):
             oversold (int): The oversold threshold for the SO
             overbought (int): The overbought threshold for the SO
         """
+        assert oversold < overbought, "oversold must be less than overbought threshold"
+        assert smoothing_window < window, "smoothing_window must be less than window"
         self.window = window
         self.smoothing_window = smoothing_window
         self.oversold = oversold
@@ -56,6 +58,9 @@ class SoAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -75,7 +80,7 @@ class SoAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

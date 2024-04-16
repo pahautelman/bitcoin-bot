@@ -33,6 +33,9 @@ class EmaAgent(Indicator):
 
     def is_action_strength_normalized(self) -> bool:
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -52,7 +55,7 @@ class EmaAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

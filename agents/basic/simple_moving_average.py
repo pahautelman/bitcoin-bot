@@ -27,6 +27,9 @@ class SmaAgent(Indicator):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -46,7 +49,7 @@ class SmaAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue

@@ -32,12 +32,16 @@ class MacdAgent(Indicator):
             slow_period (int): The slow period for the MACD
             signal_period (int): The signal period for the MACD
         """
+        assert fast_period < slow_period, "fast_period must be less than slow_period"
         self.fast_period = fast_period
         self.slow_period = slow_period
         self.signal_period = signal_period
 
     def is_action_strength_normalized(self) -> bool:
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.slow_period
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -57,7 +61,7 @@ class MacdAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.slow_period:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -114,17 +118,22 @@ class MacdAgent(Indicator):
             ActionSimple: The action to take
             int: The indicator strength
         """
-        action = ActionSimple.HOLD
-        # if macd line is above the signal
-        if macd.iloc[-1][self.MACD] > macd.iloc[-1][self.SIGNAL]:
-            indicator_strength = 1
-            # and it previously was not
-            if macd.iloc[-2][self.MACD] < macd.iloc[-2][self.SIGNAL]:
-                action = ActionSimple.BUY
-        # if macd line is below the signal
-        elif macd.iloc[-1][self.MACD] < macd.iloc[-1][self.SIGNAL]:
-            indicator_strength = -1
-            # and it previously was not
-            if macd.iloc[-2][self.MACD] > macd.iloc[-2][self.SIGNAL]:
-                action = ActionSimple.SELL
+        # Calculate the difference between MACD and Signal lines at the current and previous time steps
+        current_diff = macd.iloc[-1][self.MACD] - macd.iloc[-1][self.SIGNAL]
+        previous_diff = macd.iloc[-2][self.MACD] - macd.iloc[-2][self.SIGNAL]
+
+        # Determine the action and indicator strength based on MACD and Signal line differences
+        if current_diff > 0:
+            # If MACD line is above the Signal line
+            # BUY if it was below or equal to the Signal line in the previous time step, else HOLD
+            action = ActionSimple.BUY if previous_diff <= 0 else ActionSimple.HOLD
+            # Calculate indicator strength based on the difference between current and previous MACD lines
+            indicator_strength = 1 if current_diff > previous_diff else 1 + max((current_diff - previous_diff) / current_diff, -1)
+        else:
+            # If MACD line is below or equal to the Signal line
+            # SELL if it was above the Signal line in the previous time step, else HOLD
+            action = ActionSimple.SELL if previous_diff > 0 else ActionSimple.HOLD
+            # Calculate indicator strength based on the difference between current and previous MACD lines
+            indicator_strength = -1 if current_diff < previous_diff else -1 + min((previous_diff - current_diff) / current_diff, 1)
+
         return action, indicator_strength
