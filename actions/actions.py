@@ -25,14 +25,13 @@ class Actions(DataFrame):
     """
 
     ACTION = 'ACTION'
-    INDICATOR_STRENGTH = 'INDICATOR_STRENGTH'   
-    COLUMNS = [ACTION, INDICATOR_STRENGTH]
+    INDICATOR_STRENGTH = 'INDICATOR_STRENGTH'
 
     def __init__(self, index: List[Timestamp], data: Dict[str, List]):
-        if (list(data.keys()) != self.COLUMNS):
-            raise Exception(f'Invalid columns. Expected {self.COLUMNS} but received {list(data.keys())}')
+        if (list(data.keys()) != [Actions.ACTION, Actions.INDICATOR_STRENGTH]):
+            raise Exception(f'Invalid columns. Expected {[self.ACTION, Actions.INDICATOR_STRENGTH]} but received {list(data.keys())}')
 
-        super().__init__(index=index, data=data, columns=self.COLUMNS)
+        super().__init__(index=index, data=data, columns=[Actions.ACTION, Actions.INDICATOR_STRENGTH])
 
 # TODO: to implement margins, you can add class Investment which has:
 #   @getValue(coin_value) which calculates how much value is invested with the given coin_price
