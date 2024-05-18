@@ -1,10 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-# TODO: calculate indicator strength based on the histogram
-# TODO: how to represent strength between -1 and 1?
-class MacdAgent(Agent):
+class MacdAgent(Indicator):
     """
     Agent that implements *moving average convergence divergence* (MACD) strategy.
     MACD is a trend-following momentum lagging indicator that shows the relationship between two moving averages of an asset's price.
@@ -25,16 +25,23 @@ class MacdAgent(Agent):
         2. Sell when the MACD line crosses below the signal line.
     """
 
-    def __init__(self, fast_period: int, slow_period: int, signal_period: int):
+    def __init__(self, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9):
         """
         Args:
             fast_period (int): The fast period for the MACD
             slow_period (int): The slow period for the MACD
             signal_period (int): The signal period for the MACD
         """
+        assert fast_period < slow_period, "fast_period must be less than slow_period"
         self.fast_period = fast_period
         self.slow_period = slow_period
         self.signal_period = signal_period
+
+    def is_action_strength_normalized(self) -> bool:
+        return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.slow_period
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -48,13 +55,13 @@ class MacdAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        macd = self._get_macd(coin_data, self.fast_period, self.slow_period, self.signal_period)
+        macd = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.slow_period:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -71,10 +78,13 @@ class MacdAgent(Agent):
             }
         )
 
-    MACD = 'macd'
-    SIGNAL = 'signal'
+    MACD = 'MACD'
+    SIGNAL = 'SIGNAL'
 
-    def _get_macd(self, coin_data: DataFrame, fast_period: int=12, slow_period: int=26, signal_period: int=9) -> DataFrame:
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        return self._get_macd(coin_data, self.fast_period, self.slow_period, self.signal_period)
+
+    def _get_macd(self, coin_data: DataFrame, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9) -> DataFrame:
         """
         Function calculates the MACD.
 
@@ -87,15 +97,16 @@ class MacdAgent(Agent):
         Returns:
             DataFrame: The MACD
         """
-        macd = coin_data[coin_data.columns[0]].ewm(span=fast_period, adjust=False).mean() - \
-            coin_data[coin_data.columns[0]].ewm(span=slow_period, adjust=False).mean()
-        
-        signal = macd.ewm(span=signal_period, adjust=False).mean()
+        macd = TA.MACD(coin_data, period_fast=fast_period, period_slow=slow_period, signal=signal_period)
+        return DataFrame(
+            index=macd.index,
+            data={
+                self.MACD: macd['MACD'].values,
+                self.SIGNAL: macd['SIGNAL'].values
+            }
+        )
 
-        return DataFrame({MacdAgent.MACD: macd, MacdAgent.SIGNAL: signal})
-
-
-    def _get_simple_action(self, coin_data: DataFrame, macd: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, macd: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function gets the action to take based on the MACD.
 
@@ -107,18 +118,22 @@ class MacdAgent(Agent):
             ActionSimple: The action to take
             int: The indicator strength
         """
-        action = ActionSimple.HOLD
-        indicator_strength = 0
-        # if macd line is above the signal
-        if macd.iloc[-1][MacdAgent.MACD] > macd.iloc[-1][MacdAgent.SIGNAL]:
-            indicator_strength = 1
-            # and it previously was not
-            if macd.iloc[-2][MacdAgent.MACD] < macd.iloc[-2][MacdAgent.SIGNAL]:
-                action = ActionSimple.BUY
-        # if macd line is below the signal
-        elif macd.iloc[-1][MacdAgent.MACD] < macd.iloc[-1][MacdAgent.SIGNAL]:
-            indicator_strength = -1
-            # and it previously was not
-            if macd.iloc[-2][MacdAgent.MACD] > macd.iloc[-2][MacdAgent.SIGNAL]:
-                action = ActionSimple.SELL
+        # Calculate the difference between MACD and Signal lines at the current and previous time steps
+        current_diff = macd.iloc[-1][self.MACD] - macd.iloc[-1][self.SIGNAL]
+        previous_diff = macd.iloc[-2][self.MACD] - macd.iloc[-2][self.SIGNAL]
+
+        # Determine the action and indicator strength based on MACD and Signal line differences
+        if current_diff > 0:
+            # If MACD line is above the Signal line
+            # BUY if it was below or equal to the Signal line in the previous time step, else HOLD
+            action = ActionSimple.BUY if previous_diff <= 0 else ActionSimple.HOLD
+            # Calculate indicator strength based on the difference between current and previous MACD lines
+            indicator_strength = 1 if current_diff > previous_diff else 1 + max((current_diff - previous_diff) / current_diff, -1)
+        else:
+            # If MACD line is below or equal to the Signal line
+            # SELL if it was above the Signal line in the previous time step, else HOLD
+            action = ActionSimple.SELL if previous_diff > 0 else ActionSimple.HOLD
+            # Calculate indicator strength based on the difference between current and previous MACD lines
+            indicator_strength = -1 if current_diff < previous_diff else -1 + min((previous_diff - current_diff) / current_diff, 1)
+
         return action, indicator_strength

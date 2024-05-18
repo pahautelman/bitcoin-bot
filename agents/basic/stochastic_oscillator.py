@@ -1,8 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-class SoAgent(Agent):
+class SoAgent(Indicator):
     """
     Agent implements the *stochastic oscillator* (SO) strategy. 
     SO is a leading momentum indicator that compares the closing price of an asset to its price range over a given period of time.
@@ -41,6 +43,8 @@ class SoAgent(Agent):
             oversold (int): The oversold threshold for the SO
             overbought (int): The overbought threshold for the SO
         """
+        assert oversold < overbought, "oversold must be less than overbought threshold"
+        assert smoothing_window < window, "smoothing_window must be less than window"
         self.window = window
         self.smoothing_window = smoothing_window
         self.oversold = oversold
@@ -54,6 +58,9 @@ class SoAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -67,13 +74,13 @@ class SoAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        so = self._get_so(coin_data, self.window, self.smoothing_window)
+        so = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -90,7 +97,7 @@ class SoAgent(Agent):
             }
         )
     
-    SO = 'so'
+    SO = 'SO'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -102,9 +109,7 @@ class SoAgent(Agent):
         Returns:
             DataFrame: The SO
         """
-        so = self._get_so(coin_data, self.window, self.smoothing_window)
-        so[self.SO] = so[self.SO].apply(lambda x: (x - 50) / 50)
-        return so
+        return self._get_so(coin_data, self.window, self.smoothing_window)
     
     def _get_so(self, coin_data: DataFrame, window: int, smoothing_window: int) -> DataFrame:
         """
@@ -118,25 +123,15 @@ class SoAgent(Agent):
         Returns:
             DataFrame: The SO for the coin data
         """
-        # 1. Calculate the highest high and lowest low over the window size.
-        # highest_high = coin_data['High'].rolling(window=window).max()
-        # print(highest_high.size)
-        
-
-
-        highest_high = coin_data['High'].rolling(window=window).max()
-        lowest_low = coin_data['Low'].rolling(window=window).min()
-        so = 100 * (coin_data['Close'] - lowest_low) / (highest_high - lowest_low)
-        so = so.rolling(window=smoothing_window).mean()
-
+        so = TA.STOCHD(coin_data, period=smoothing_window, stoch_period=window)
         return DataFrame(
-            index=coin_data.index,
+            index=so.index,
             data={
-                self.SO: so
+                self.SO: so.values
             }
         )
     
-    def _get_simple_action(self, coin_data: DataFrame, so: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, so: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function returns the action to take based on the SO.
 

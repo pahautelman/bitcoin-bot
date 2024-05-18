@@ -1,17 +1,18 @@
 import requests
 
+from actions.actions import Actions, ActionSimple
+from agents.agent import Indicator
+from datetime import datetime
 from pandas import DataFrame
 from pandas._libs.tslibs.timestamps import Timestamp
-from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
-from datetime import datetime
+from typing import Tuple
 
 
-class SentimentAnalysisAgent(Agent):
+class SentimentAnalysisAgent(Indicator):
     """
     Agent that implements sentiment analysis strategy.
 
-    Currently retrives the BTC fear-and-greed index from alternative.me.
+    Currently retrieves the BTC fear-and-greed index from alternative.me.
 
     Indicator strength is equal to the sentiment on a given day. Value between [-1, 1]
     """
@@ -33,6 +34,18 @@ class SentimentAnalysisAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def is_action_strength_normalized(self) -> bool:
+        """
+        Method that returns whether the action strength is normalized, having values between [-1, 1].
+
+        Returns:
+            bool: Whether the action strength is normalized
+        """
+        return True
+    
+    def get_initial_intervals(self) -> int:
+        return 0
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -44,13 +57,13 @@ class SentimentAnalysisAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        fear_and_greed = self._get_fear_and_greed_index(coin_data)
+        sentiment_analysis = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            action, indicator_strength = self._get_simple_action(coin_data.iloc[:i + 1], fear_and_greed.iloc[:i + 1])
+            action, indicator_strength = self._get_simple_action(coin_data.iloc[:i + 1], sentiment_analysis.iloc[:i + 1])
             actions.append(action)
             indicator_values.append(indicator_strength)
 
@@ -62,7 +75,7 @@ class SentimentAnalysisAgent(Agent):
             }
         )
     
-    FEAR_AND_GREED = 'fear_and_greed'
+    SENTIMENT_ANALYSIS = 'sentiment_analysis'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -74,11 +87,10 @@ class SentimentAnalysisAgent(Agent):
         Returns:
             DataFrame: The fear and greed index
         """
-        ind = self._get_fear_and_greed_index(coin_data)
-        print(ind)
+        ind = self._get_sentiment_analysis(coin_data)
         return ind
 
-    def _get_fear_and_greed_index(self, coin_data: DataFrame) -> DataFrame:
+    def _get_sentiment_analysis(self, coin_data: DataFrame) -> DataFrame:
         """
         Function gets the fear and greed index from alternative.me.
         
@@ -122,8 +134,8 @@ class SentimentAnalysisAgent(Agent):
             
             index_data.append({'Timestamp': date, 'Value': int(value)})
 
-        fear_and_greed_dates = []
-        fear_and_greed_values = []
+        sa_dates = []
+        sa_values = []
         
         index_data_index = -1
         index_data_value = None
@@ -132,19 +144,19 @@ class SentimentAnalysisAgent(Agent):
                 index_data_index += 1
                 index_data_value = index_data[index_data_index]['Value']
 
-            fear_and_greed_dates.append(date)
+            sa_dates.append(date)
             value = (index_data_value - 50) / 50 if index_data_value is not None else None
-            fear_and_greed_values.append(value)
+            sa_values.append(value)
             
         df = DataFrame(
-            index=fear_and_greed_dates, 
+            index=sa_dates, 
             data={
-                self.FEAR_AND_GREED: fear_and_greed_values
+                self.SENTIMENT_ANALYSIS: sa_values
             }
         )
         return df
     
-    def _get_simple_action(self, coin_data: DataFrame, fear_and_greed: DataFrame) -> (ActionSimple, float):
+    def _get_simple_action(self, coin_data: DataFrame, fear_and_greed: DataFrame) -> Tuple[ActionSimple, float]:
         """
         Function returns the action and the indicator strength for the given coin data and indicator.
 
@@ -156,7 +168,7 @@ class SentimentAnalysisAgent(Agent):
             ActionSimple: Always HOLD
             int: The indicator value
         """
-        return ActionSimple.HOLD, fear_and_greed.iloc[-1][self.FEAR_AND_GREED]
+        return ActionSimple.HOLD, fear_and_greed.iloc[-1][self.SENTIMENT_ANALYSIS]
     
 
     

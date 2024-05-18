@@ -1,6 +1,8 @@
-from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple
 from agents.agent import Indicator
+from finta import TA
+from pandas.core.frame import DataFrame
+from typing import Tuple
 
 class EmaAgent(Indicator):
     """
@@ -22,15 +24,18 @@ class EmaAgent(Indicator):
         2. Sell when the price crosses below the EMA.
     """
 
-    def is_action_strength_normalized(self) -> bool:
-        return False
-
     def __init__(self, window: int = 50):
         """
         Args:
             window (int): The window size for the EMA
         """
         self.window = window
+
+    def is_action_strength_normalized(self) -> bool:
+        return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -50,7 +55,7 @@ class EmaAgent(Indicator):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -67,7 +72,7 @@ class EmaAgent(Indicator):
             }
         )
 
-    EMA = 'ema'
+    EMA = 'EMA'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -92,17 +97,19 @@ class EmaAgent(Indicator):
         Returns:
             DataFrame: The EMA
         """
-        ema = coin_data['Close'].ewm(span=window, adjust=False).mean()
+        ema = TA.EMA(coin_data, window)
         return DataFrame(
             index=ema.index,
             data = {
-                self.EMA: ema
+                self.EMA: ema.values,
             }
         )
 
-    def _get_simple_action(self, coin_data: DataFrame, ema: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, ema: DataFrame) -> Tuple[ActionSimple, int]:
         """
-        Function gets the EMA simple action.
+        Function gets the EMA simple action. 
+        Buy when the price crosses above the EMA.
+        Sell when the price crosses below the EMA.
 
         Args:
             coin_data (DataFrame): The coin data

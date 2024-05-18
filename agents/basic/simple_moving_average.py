@@ -1,9 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-
-class SmaAgent(Agent):
+class SmaAgent(Indicator):
     """
     Agent that implements *simple moving average* (SMA) strategy.
 
@@ -26,6 +27,9 @@ class SmaAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -39,13 +43,13 @@ class SmaAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        sma = self._get_sma(coin_data, self.window)
+        sma = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -62,7 +66,7 @@ class SmaAgent(Agent):
             }
         )
 
-    SMA = 'sma'
+    SMA = 'SMA'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -76,7 +80,7 @@ class SmaAgent(Agent):
         """
         return self._get_sma(coin_data, self.window)
 
-    def _get_sma(self, coin_data: DataFrame, window: int=14) -> DataFrame:
+    def _get_sma(self, coin_data: DataFrame, window: int=50) -> DataFrame:
         """
         Function calculates the SMA.
 
@@ -87,14 +91,15 @@ class SmaAgent(Agent):
         Returns:
             DataFrame: The SMA
         """
+        sma = TA.SMA(coin_data, window)
         return DataFrame(
-            index=coin_data.index,
+            index=sma.index,
             data={
-                self.SMA: coin_data['Close'].rolling(window=window).mean()
+                self.SMA: sma.values
             }
         )
 
-    def _get_simple_action(self, coin_data: DataFrame, sma: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, sma: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function calculates the action to take based on the SMA.
 

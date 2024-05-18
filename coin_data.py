@@ -1,5 +1,6 @@
-import matplotlib.pyplot as plt
 import ccxt
+import math
+import matplotlib.pyplot as plt
 import pandas as pd
 import math
 
@@ -8,7 +9,7 @@ from pandas._libs.tslibs.timestamps import Timestamp
 from actions.actions import Actions, ActionSimple, Investments
 
 
-def get_coin_data(coin: str, timeframe: str, start_date: Timestamp = None, end_date: Timestamp = None) -> DataFrame:
+def get_coin_data(coin: str, timeframe: str = '1h', start_date: Timestamp = None, end_date: Timestamp = None) -> DataFrame:
     """
     Get the coin data from binance exchange.
 
@@ -25,12 +26,13 @@ def get_coin_data(coin: str, timeframe: str, start_date: Timestamp = None, end_d
     exchange = ccxt.binance()
     exchange.load_markets()
 
-    # {'1s', '1m', '3m','5m', '15m','30m','1h','2h','4h',6h',8h,'12h',1d', '3d', '1w', '1M'}
     # print(exchange.timeframes)
+    # > {'1s', '1m', '3m','5m', '15m','30m','1h','2h','4h',6h',8h,'12h',1d', '3d', '1w', '1M'}
     if start_date is None and end_date is None:
         ohlcv_data = exchange.fetch_ohlcv(coin, timeframe=timeframe)
     else:
         start_timestamp_ms = int(start_date.timestamp() * 1000)
+        end_timestamp_ms = None
         if end_date is not None:
             end_timestamp_ms = int(end_date.timestamp() * 1000)
             ms_per_timeframe = _get_ms_per_timeframe(timeframe)

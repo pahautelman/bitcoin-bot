@@ -1,6 +1,8 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
 from agents.basic.exponential_moving_average import EmaAgent
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
 class AdxAgent(EmaAgent):
     """
@@ -46,6 +48,9 @@ class AdxAgent(EmaAgent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -66,7 +71,7 @@ class AdxAgent(EmaAgent):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -83,7 +88,7 @@ class AdxAgent(EmaAgent):
             }
         )
 
-    ADX = 'adx'
+    ADX = 'ADX'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -108,35 +113,15 @@ class AdxAgent(EmaAgent):
         Returns:
             DataFrame: The ADX
         """
-        # Calculate the directional movement, +DM and -DM
-        dm = coin_data['High'].diff()
-        dm = dm.apply(lambda x: 0 if x < 0 else x)
-        dm = dm.rename('dm')
-        dm_neg = coin_data['Low'].diff()
-        dm_neg = dm_neg.apply(lambda x: 0 if x > 0 else abs(x))
-        dm_neg = dm_neg.rename('dm_neg')
-        dm = dm.to_frame().join(dm_neg.to_frame())
-
-        # Calculate the directional indicators, +DI and -DI
-        di_pos = dm['dm'].ewm(span=window, adjust=False).mean()
-        di_neg = dm['dm_neg'].ewm(span=window, adjust=False).mean()
-        di = di_pos.to_frame().join(di_neg.to_frame())
-
-        # Calculate the average directional index, ADX
-        adx = (di['dm'] - di['dm_neg']).abs()
-        adx = adx / (di['dm'] + di['dm_neg'])
-        adx = adx.ewm(span=window, adjust=False).mean()
-        adx = adx.apply(lambda x: abs(x))
-        adx = adx.apply(lambda x: 100 * x)
-
+        adx = TA.ADX(coin_data, window)
         return DataFrame(
             index=adx.index,
-            data={
-                self.ADX: adx
+            data = {
+                self.ADX: adx.values
             }
         )
 
-    def _get_simple_action(self, coin_data: DataFrame, adx: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, adx: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function gets the ADX simple action.
 
@@ -147,12 +132,15 @@ class AdxAgent(EmaAgent):
         Returns:
             (ActionSimple, int): The action and indicator strength
         """
+        current_adx = adx.iloc[-1][self.ADX]
+        previous_adx = adx.iloc[-2][self.ADX]
+
         action = ActionSimple.HOLD
         # if ADX crosses above threshold, buy
-        if adx.iloc[-1][self.ADX] > self.threshold and adx.iloc[-2][self.ADX] < self.threshold:
+        if current_adx > self.threshold and previous_adx < self.threshold:
             action = ActionSimple.BUY
-        elif adx.iloc[-1][self.ADX] < -self.threshold and adx.iloc[-2][self.ADX] > -self.threshold:
+        elif current_adx < -self.threshold and previous_adx > -self.threshold:
             action = ActionSimple.SELL
         
-        indicator_strength = (adx.iloc[-1][self.ADX] - 50) / 50
+        indicator_strength = current_adx / 100
         return action, indicator_strength

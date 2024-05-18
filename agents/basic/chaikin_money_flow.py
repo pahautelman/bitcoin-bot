@@ -1,8 +1,9 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from pandas import DataFrame
+from typing import Tuple
 
-class CmfAgent(Agent):
+class CmfAgent(Indicator):
     """
     Agent that implements *Chaikin money flow* (CMF) strategy.
 
@@ -37,6 +38,9 @@ class CmfAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -48,13 +52,13 @@ class CmfAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        cmf = self._get_cmf(coin_data, self.window)
+        cmf = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -71,7 +75,7 @@ class CmfAgent(Agent):
             }
         )
     
-    CMF = 'cmf'
+    CMF = 'CMF'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -104,7 +108,7 @@ class CmfAgent(Agent):
             }
         )
     
-    def _get_simple_action(self, coin_data: DataFrame, cmf: DataFrame) -> (ActionSimple, float):
+    def _get_simple_action(self, coin_data: DataFrame, cmf: DataFrame) -> Tuple[ActionSimple, float]:
         """
         Function returns the action and the indicator strength for the given coin data and indicator.
 

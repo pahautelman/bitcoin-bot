@@ -1,8 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-class AtrAgent(Agent):
+class AtrAgent(Indicator):
     """
     Agent that implements *average true range* (ATR) strategy.
     ATR is a market volatility indicator that shows the average range of an asset's price over a specified time period.
@@ -38,6 +40,9 @@ class AtrAgent(Agent):
         """
         return False
     
+    def get_initial_intervals(self) -> int:
+        return self.window
+    
     def act(self, coin_data: DataFrame) -> Actions:
         """
         Function implements ATR strategy.
@@ -54,7 +59,7 @@ class AtrAgent(Agent):
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -71,7 +76,7 @@ class AtrAgent(Agent):
             }
         )
     
-    ATR = 'atr'
+    ATR = 'ATR'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -97,38 +102,15 @@ class AtrAgent(Agent):
             DataFrame: The ATR
             The first (window) values are 0.
         """
-        # calculate true range for the first window
-        tr = []
-        atr = []
-        for i in range(window):
-            high = coin_data['High'].iloc[i]
-            low = coin_data['Low'].iloc[i]
-            if i == 0:
-                close_prev = coin_data['Close'].iloc[i]
-            else:
-                close_prev = coin_data['Close'].iloc[i-1]
-            tr.append(max(high-low, abs(high-close_prev), abs(low-close_prev)))
-            if i != window-1:
-                atr.append(0)
-            else:
-                atr.append(sum(tr)/window)
-
-        # calculate ATR
-        for i in range(window, len(coin_data)):
-            high = coin_data['High'].iloc[i]
-            low = coin_data['Low'].iloc[i]
-            close_prev = coin_data['Close'].iloc[i-1]
-            tr.append(max(high-low, abs(high-close_prev), abs(low-close_prev)))
-            atr.append((atr[i-1]*(window-1) + tr[i]) / window)
-
+        atr = TA.ATR(coin_data, window)
         return DataFrame(
-            index=coin_data.index,
+            index=atr.index,
             data={
-                self.ATR: atr
+                self.ATR: atr.values
             }
         )
     
-    def _get_simple_action(self, coin_data: DataFrame, atr: DataFrame) -> (ActionSimple, float):
+    def _get_simple_action(self, coin_data: DataFrame, atr: DataFrame) -> Tuple[ActionSimple, float]:
         """
         Function gets the simple action based on the indicator.
 

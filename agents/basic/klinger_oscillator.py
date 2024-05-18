@@ -1,8 +1,9 @@
-from pandas import DataFrame, Series
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from pandas import DataFrame, Series
+from typing import Tuple
 
-class KoAgent(Agent):
+class KoAgent(Indicator):
     """
     Agent that implements *Klinger oscillator* (KO) strategy.
     KO is a leading momentum oscillator and is used to measure the long-term trends of money flow while also considering short-term price fluctuations.
@@ -40,6 +41,9 @@ class KoAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return 55
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -51,13 +55,13 @@ class KoAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        ko = self._get_ko(coin_data)
+        ko = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= 55:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -74,7 +78,10 @@ class KoAgent(Agent):
             }
         )
     
-    KO = 'ko'
+    def get_indicator(self, coin_data: DataFrame) -> DataFrame:
+        return self._get_ko(coin_data)
+    
+    KO = 'KO'
 
     def _get_ko(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -140,7 +147,7 @@ class KoAgent(Agent):
             }
         )
     
-    def _get_simple_action(self, coin_data: DataFrame, ko_sma: DataFrame) -> (ActionSimple, float):
+    def _get_simple_action(self, coin_data: DataFrame, ko_sma: DataFrame) -> Tuple[ActionSimple, float]:
         """
         Function returns the simple action and indicator strength for the given indicator.
 

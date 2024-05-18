@@ -61,14 +61,17 @@ def _normalize_features(coin_data: DataFrame, window_size: int) -> DataFrame:
     coin_data.dropna(inplace=True)
     return coin_data
 
+from gym.envs.registration import EnvSpec
+
 def get_env(
         coin: str,
         coin_data: DataFrame,
         window_size: int=60,
-        positions: [float]=[-1, 0, 1],
+        max_episode_duration: int=24,
         trading_fees=0.001,
         borrow_interest_rate=0.0003/100,
-        portfolio_initial_value=10000,
+        portfolio_initial_value=1000,
+        env: str | EnvSpec = "TradingEnv",
         ) -> Env:
     """
     Method that returns the gym-trading environment.
@@ -78,23 +81,27 @@ def get_env(
         coin_data (DataFrame): The processed coin data
         window (int, optional): The window size for the volume feature. Defaults to 60.
         positions ([float], optional): The positions. Defaults to [-1, 0, 1].
+        max_episode_duration (int, optional): The maximum episode duration. Defaults to 24.
         trading_fees (float, optional): The trading fees. Defaults to 0.001.
         borrow_interest_rate (float, optional): The borrow interest rate. Defaults to 0.0003/100.
         portfolio_initial_value (int, optional): The initial portfolio value. Defaults to 10000.
+        env (str, EnvSpec, optional): The gym-trading environment spec. Defaults to "TradingEnv".
 
     Returns:
         gym.core.Env: The gym-trading environment
     """
+    # debt = (margin_borrowings + accrued_interest) / total assets
+
     env = gym.make(
-        "TradingEnv",
+        env,
         name=coin,
         df=coin_data,
         windows=window_size,
-        positions=positions,
         trading_fees=trading_fees,
         borrow_interest_rate=borrow_interest_rate,
         portfolio_initial_value=portfolio_initial_value,
-        reward_function=_reward_function
+        reward_function=_reward_function,
+        max_episode_duration=max_episode_duration
     )
 
     env.unwrapped.add_metric('Position Changes', lambda history : np.sum(np.diff(history['position']) != 0) )

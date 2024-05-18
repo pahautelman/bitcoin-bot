@@ -1,8 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-class ObvAgent(Agent):
+class ObvAgent(Indicator):
     """
     Agent that implements *on balance volume* (OBV) strategy.
     OBV is a leading momentum indicator that uses volume flow to predict changes in price.
@@ -40,6 +42,9 @@ class ObvAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return False
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -51,13 +56,13 @@ class ObvAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        obv = self._get_obv(coin_data, self.window)
+        obv = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -74,7 +79,7 @@ class ObvAgent(Agent):
             }
         )
     
-    OBV = 'obv'
+    OBV = 'OBV'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -86,52 +91,27 @@ class ObvAgent(Agent):
         Returns:
             DataFrame: The OBV
         """
-        obv = self._get_obv(coin_data, sma_window=self.window)
-        # apply pct_change to the OBV SMA
-        obv[self.OBV] = obv[self.OBV].pct_change()
-        # limit the values to [-1, 1]
-        obv[self.OBV] = obv[self.OBV].clip(lower=-1, upper=1) 
-        return obv
+        return self._get_obv(coin_data)
     
-    def _get_obv(self, coin_data: DataFrame, sma_window: int) -> DataFrame:
+    def _get_obv(self, coin_data: DataFrame) -> DataFrame:
         """
         Function calculates the OBV for the given coin data.
 
         Args:
             coin_data (DataFrame): The coin data
-            sma_window (int): The window size for the OBV SMA
 
         Returns:
             DataFrame: The OBV
         """
-        obv = coin_data['Close'].diff()
-        obv[obv > 0] = coin_data['Volume']
-        obv[obv < 0] = -coin_data['Volume']
-        obv[obv == 0] = 0
-        obv = obv.cumsum()
-        obv = self._get_sma(obv, window=sma_window)
-
+        obv = TA.OBV(coin_data)
         return DataFrame(
-            index=coin_data.index,
+            index=obv.index,
             data={
-                self.OBV: obv
+                self.OBV: obv.values
             }
         )
     
-    def _get_sma(self, obv: DataFrame, window: int) -> DataFrame:
-        """
-        Function calculates the simple moving average for the given OBV.
-
-        Args:
-            obv (DataFrame): The OBV
-            window (int): The window size for the SMA
-
-        Returns:
-            DataFrame: The SMA
-        """
-        return obv.rolling(window=window).mean()
-    
-    def _get_simple_action(self, coin_data: DataFrame, obv_sma: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, obv_sma: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function gets the action to take based on the OBV.
 

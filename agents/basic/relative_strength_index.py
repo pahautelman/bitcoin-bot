@@ -1,8 +1,10 @@
-from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.agent import Agent
+from agents.agent import Indicator
+from finta import TA
+from pandas import DataFrame
+from typing import Tuple
 
-class RsiAgent(Agent):
+class RsiAgent(Indicator):
     """
     Agent that implements *relative strength index* (RSI) strategy.
     RSI is a leading momentum oscillator that measures the speed and change of price movements.
@@ -29,16 +31,21 @@ class RsiAgent(Agent):
     def __init__(
             self, 
             window: int = 14, 
+            smoothing_window: int = 3,
             oversold: int = 30, 
             overbought: int = 70
         ):
         """
         Args:
             window (int): The window size for the RSI
+            smoothing_window (int): The smoothing window for the RSI
             oversold (int): The oversold threshold for the RSI
             overbought (int): The overbought threshold for the RSI
         """
+        assert window > smoothing_window, "window must be greater than smoothing_window"
+        assert oversold < overbought, "oversold must be less than overbought threshold"
         self.window = window
+        self.smoothing_window = smoothing_window
         self.oversold = oversold
         self.overbought = overbought
 
@@ -50,6 +57,9 @@ class RsiAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -63,13 +73,13 @@ class RsiAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        rsi = self._get_rsi(coin_data, self.window)
+        rsi = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(len(coin_data)):
-            if i <= self.window:
+            if i <= self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -85,7 +95,7 @@ class RsiAgent(Agent):
             }
         )
 
-    RSI = 'rsi'
+    RSI = 'RSI'
 
     def get_indicator(self, coin_data: DataFrame) -> DataFrame:
         """
@@ -97,8 +107,7 @@ class RsiAgent(Agent):
         Returns:
             DataFrame: The RSI
         """
-        rsi = self._get_rsi(coin_data, self.window)
-        return (rsi - 50) / 50 
+        return self._get_rsi(coin_data, self.window)
 
     def _get_rsi(self, coin_data: DataFrame, window: int=14) -> DataFrame:
         """
@@ -111,21 +120,16 @@ class RsiAgent(Agent):
         Returns:
             DataFrame: The RSI
         """
-        delta = coin_data['Close'].diff()
-        up = delta.clip(lower=0)
-        down = -1 * delta.clip(upper=0)
-        ema_up = up.ewm(com=window - 1, adjust=True, min_periods=window).mean()
-        ema_down = down.ewm(com=window - 1, adjust=True, min_periods=window).mean()
-        rs = ema_up / ema_down
-        rsi = 100 - (100 / (1 + rs))
+        rsi = TA.RSI(coin_data, window)
+        rsi = rsi.rolling(window=self.smoothing_window).mean()
         return DataFrame(
-            index=coin_data.index,
+            index=rsi.index,
             data={
-                self.RSI: rsi
+                self.RSI: rsi.values
             }
         )
 
-    def _get_simple_action(self, coin_data: DataFrame, rsi: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, rsi: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function returns the simple action based on the RSI.
 

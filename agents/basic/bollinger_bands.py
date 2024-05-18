@@ -1,8 +1,10 @@
-from agents.agent import Agent
-from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple
+from agents.agent import Indicator
+from finta import TA
+from pandas.core.frame import DataFrame
+from typing import Tuple
 
-class BbAgent(Agent):
+class BbAgent(Indicator):
     """
     Agent that implements Bollinger bands (BB) strategy.
     BB is lagging mean reversion indicator. It shows overbought/oversold conditions relative to past price action, 
@@ -41,6 +43,9 @@ class BbAgent(Agent):
             bool: Whether the action strength is normalized
         """
         return True
+    
+    def get_initial_intervals(self) -> int:
+        return self.bb_window
 
     def act(self, coin_data: DataFrame) -> Actions:
         """
@@ -54,13 +59,13 @@ class BbAgent(Agent):
         Returns:
             Actions: The actions to take
         """
-        bands = self._get_bollinger_bands(coin_data, window=self.bb_window, std=self.bb_std)
+        bands = self.get_indicator(coin_data)
 
         action_date = coin_data.index
         actions = []
         indicator_values = []
         for i in range(0, len(coin_data)):
-            if i < self.bb_window:
+            if i < self.get_initial_intervals():
                 actions.append(ActionSimple.HOLD)
                 indicator_values.append(0)
                 continue
@@ -105,22 +110,17 @@ class BbAgent(Agent):
         Returns:
             DataFrame: The bollinger bands
         """
-        rolling_mean = coin_data['Close'].rolling(window=window).mean()
-        rolling_std = coin_data['Close'].rolling(window=window).std()
-
-        upper_band = rolling_mean + (rolling_std * std)
-        lower_band = rolling_mean - (rolling_std * std)
-
+        bbands = TA.BBANDS(coin_data, period=window, std_multiplier=std)
         return DataFrame(
-            index=coin_data.index,
+            index=bbands.index,
             data={
-                self.UPPER_BAND: upper_band,
-                self.LOWER_BAND: lower_band,
-                self.ROLLING_MEAN: rolling_mean
+                self.UPPER_BAND: bbands['BB_UPPER'].values,
+                self.LOWER_BAND: bbands['BB_LOWER'].values,
+                self.ROLLING_MEAN: bbands['BB_MIDDLE'].values,
             }
         )
 
-    def _get_simple_action(self, coin_data: DataFrame, bands: DataFrame) -> (ActionSimple, int):
+    def _get_simple_action(self, coin_data: DataFrame, bands: DataFrame) -> Tuple[ActionSimple, int]:
         """
         Function return instantaneous Bollinger bands strategy.
         Buy when the price touches or falls below the lower BB and then rises back inside the bands.
@@ -134,27 +134,29 @@ class BbAgent(Agent):
             ActionSimple: The action to take
             int: The indicator strength
         """
-        action = ActionSimple.HOLD
-        # if price is inside the bands
-        if bands.iloc[-1][self.LOWER_BAND] < coin_data.iloc[-1]['Close'] < bands.iloc[-1][self.UPPER_BAND]:
-            # and it previously was above the upper band
-            if coin_data.iloc[-2]['Close'] > bands.iloc[-2][self.UPPER_BAND]:
-                # then sell
+        current_price = coin_data.iloc[-1]['Close']
+        upper_band = bands.iloc[-1][self.UPPER_BAND]
+        lower_band = bands.iloc[-1][self.LOWER_BAND]
+        mean_band = bands.iloc[-1][self.ROLLING_MEAN]
+        previous_price = coin_data.iloc[-2]['Close']
+
+        if lower_band <= current_price <= upper_band:
+            if previous_price > upper_band:
                 action = ActionSimple.SELL
-            # if it previously was below the lower band
-            elif coin_data.iloc[-2]['Close'] < bands.iloc[-2][self.LOWER_BAND]:
-                # then buy
+            elif previous_price < lower_band:
                 action = ActionSimple.BUY
-            
-            # calculate indicator strength
-            if coin_data.iloc[-1]['Close'] > bands.iloc[-1][self.ROLLING_MEAN]:
-                indicator_strength = -(coin_data.iloc[-1]['Close'] - bands.iloc[-1][self.ROLLING_MEAN]) / (bands.iloc[-1][self.UPPER_BAND] - bands.iloc[-1][self.ROLLING_MEAN]) 
             else:
-                indicator_strength = (coin_data.iloc[-1]['Close'] - bands.iloc[-1][self.ROLLING_MEAN]) / (bands.iloc[-1][self.LOWER_BAND] - bands.iloc[-1][self.ROLLING_MEAN])
-        # if price is above the upper band
-        elif coin_data.iloc[-1]['Close'] >= bands.iloc[-1][self.UPPER_BAND]:
+                action = ActionSimple.HOLD
+
+            if current_price > mean_band:
+                indicator_strength = -(current_price - mean_band) / (upper_band - mean_band)
+            else:
+                indicator_strength = (current_price - mean_band) / (lower_band - mean_band)
+        elif current_price >= upper_band:
+            action = ActionSimple.SELL
             indicator_strength = -1
         else:
+            action = ActionSimple.BUY
             indicator_strength = 1
 
-        return action, indicator_strength     
+        return action, indicator_strength 
