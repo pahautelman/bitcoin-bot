@@ -124,4 +124,3 @@ class ObvAgent(Indicator):
             int: The OBV SMA value
         """
         return ActionSimple.HOLD, obv_sma.iloc[-1]
-    

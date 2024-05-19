@@ -1,9 +1,9 @@
 from pandas import DataFrame
 from actions.actions import Actions, ActionSimple
-from agents.MACD_agent import MACD_agent
-from agents.RSI_agent import RSI_agent
+from agents.basic.moving_average_convergence_divergence import MacdAgent
+from agents.basic.relative_strength_index import RsiAgent
 
-class MACD_RSI_agent(MACD_agent, RSI_agent):
+class MacdRsiAgent(MacdAgent, RsiAgent):
     """
     Agent that implements *moving average convergence divergence* (MACD) and *relative strength index* (RSI) strategy.
 
@@ -52,7 +52,7 @@ class MACD_RSI_agent(MACD_agent, RSI_agent):
                 indicator_values.append(0)
                 continue
 
-            action, indicator_strength = self._get_dmac_rsi_action(macd.iloc[:i], rsi.iloc[:i])
+            action, indicator_strength = self._get_simple_action(coin_data.iloc[:i], macd.iloc[:i], rsi.iloc[:i])
             actions.append(action)
             indicator_values.append(indicator_strength)
 
@@ -64,26 +64,27 @@ class MACD_RSI_agent(MACD_agent, RSI_agent):
             }
         )
     
-    def _get_dmac_rsi_action(self, macd: DataFrame, rsi: DataFrame) -> ActionSimple:
+    def _get_simple_action(self, coin_data: DataFrame, macd: DataFrame, rsi: DataFrame) -> ActionSimple:
         """
         Function calculates the action to take based on the MACD and RSI.
 
         Args:
+            coin_data (DataFrame): The coin data
             macd (DataFrame): The MACD
             rsi (DataFrame): The RSI
 
         Returns:
             ActionSimple: The action to take
         """
-        macd_action, _ = MACD_agent._get_simple_action(self, macd)
-        rsi_action, rsi_strength = RSI_agent._get_simple_action(self, rsi)
+        macd_action, macd_strength = MacdAgent._get_simple_action(self, coin_data, macd)
+        rsi_action, rsi_strength = RsiAgent._get_simple_action(self, coin_data, rsi)
 
         action = ActionSimple.HOLD
         indicator_strength = 0
-        if (macd_action == ActionSimple.BUY and rsi_strength > 0) or rsi_action == ActionSimple.BUY:
+        if (macd_action == ActionSimple.BUY and rsi_strength > 0.15) or rsi_action == ActionSimple.BUY:
             action = ActionSimple.BUY
             indicator_strength = 1
-        elif rsi_action == ActionSimple.SELL:
+        elif (macd_strength == ActionSimple.SELL and rsi_strength < -0.15) or rsi_action == ActionSimple.SELL:
             action = ActionSimple.SELL
             indicator_strength = -1
         

@@ -2,6 +2,7 @@ import ccxt
 import math
 import matplotlib.pyplot as plt
 import pandas as pd
+import math
 
 from pandas.core.frame import DataFrame
 from pandas._libs.tslibs.timestamps import Timestamp
@@ -13,8 +14,11 @@ def get_coin_data(coin: str, timeframe: str = '1h', start_date: Timestamp = None
     Get the coin data from binance exchange.
 
     Args:
-        coin (str): The coin to get the data for
-        timestamp (str): The timestamp to get the data for (1m, 1h, 1d, etc)
+        coin (str): The coin to get the data for.
+        timeframe (str): The timeframe to get the data for.
+            {'1s', '1m', '3m','5m', '15m','30m','1h','2h','4h',6h',8h,'12h',1d', '3d', '1w', '1M'}
+        start_date (Timestamp): The start date of the data.
+        end_date (Timestamp): The end date of the data.
 
     Returns:
         DataFrame: The coin data
@@ -122,9 +126,10 @@ def plot_actions(coin_data: DataFrame, actions: Actions, coin: str, agent_name: 
         coin_data (DataFrame): The coin data
         actions (DataFrame): The actions to plot
         coin (str): The coin to plot
+        agent_name (str): The name of the agent
     """
     plt.figure(figsize=(20, 10))
-    plt.title(f'{coin} price with actions')
+    plt.title(f'{coin} price with {agent_name} actions')
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     
@@ -168,7 +173,7 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
     coins_invested = 0
     for i in range(len(coin_data)):
         if coin_data.index[i] in investments.index:
-            usd_invested = investments.loc[coin_data.index[i]][Investments.USD_AMOUNT_INVESTED]
+            usd_invested = investments.loc[coin_data.index[i]][Investments.FIAT_AMOUNT_INVESTED]
             coins_invested = investments.loc[coin_data.index[i]][Investments.COIN_AMOUNT_INVESTED]
 
         usd_value.append(usd_invested)
@@ -183,7 +188,7 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
 
     # plot percentage of portfolio in USD and coins
     plt.figure(figsize=(20, 10))
-    plt.title(f'Percentage of portfolio in USD and {coin} value')
+    plt.title(f'Percentage of portfolio in USD and {coin} value with {agent_name} investments')
     plt.xlabel('Date')
     plt.ylabel('Percentage of portfolio')
 
@@ -213,7 +218,7 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
 
     # plot profit and coin crease over time
     plt.figure(figsize=(20, 10))
-    plt.title(f'Profit and {coin} value over time')
+    plt.title(f'{coin} value and {agent_name} profit over time')
     plt.xlabel('Date')
     plt.ylabel('Change %')
 
