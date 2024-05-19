@@ -173,7 +173,7 @@ def plot_profit(coin_data: DataFrame, investments: Investments, coin: str, agent
     coins_invested = 0
     for i in range(len(coin_data)):
         if coin_data.index[i] in investments.index:
-            usd_invested = investments.loc[coin_data.index[i]][Investments.USD_AMOUNT_INVESTED]
+            usd_invested = investments.loc[coin_data.index[i]][Investments.FIAT_AMOUNT_INVESTED]
             coins_invested = investments.loc[coin_data.index[i]][Investments.COIN_AMOUNT_INVESTED]
 
         usd_value.append(usd_invested)

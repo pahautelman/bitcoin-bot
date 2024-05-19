@@ -2,10 +2,7 @@ from agents.agent import Agent
 from pandas.core.frame import DataFrame
 from actions.actions import Actions, ActionSimple, Investments
 
-<<<<<<< HEAD:agents/basic/dollar_cost_averaging.py
-=======
 # TODO: fix
->>>>>>> main:agents/DCA_agent.py
 class DcaAgent(Agent):
     """
     Dollar Cost Averaging agent.
@@ -66,7 +63,7 @@ class DcaAgent(Agent):
                 investments = Investments(
                     index=[coin_data.index[0]],
                     data={
-                        Investments.USD_AMOUNT_INVESTED: [portfolio_size - self.investment_amount],
+                        Investments.FIAT_AMOUNT_INVESTED: [portfolio_size - self.investment_amount],
                         Investments.COIN_AMOUNT_INVESTED: [self.investment_amount / coin_data.loc[actions.index[0]]['Close']]
                     }
                 )
