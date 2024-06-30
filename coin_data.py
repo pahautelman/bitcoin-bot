@@ -7,7 +7,20 @@ import math
 from pandas.core.frame import DataFrame
 from pandas._libs.tslibs.timestamps import Timestamp
 from actions.actions import Actions, ActionSimple, Investments
-
+from agents.agent import Agent
+from agents.basic.average_directional_index import AdxAgent
+from agents.basic.average_true_range import AtrAgent
+from agents.basic.bollinger_bands import BbAgent
+from agents.basic.chaikin_money_flow import CmfAgent
+from agents.basic.exponential_moving_average import EmaAgent
+from agents.basic.fibonacci_retracement import FibonacciRetracementAgent
+from agents.basic.moving_average_convergence_divergence import MacdAgent
+from agents.basic.on_balance_volume import ObvAgent
+from agents.basic.relative_strength_index import RsiAgent
+from agents.basic.sentiment_analysis import SentimentAnalysisAgent
+from agents.basic.simple_moving_average import SmaAgent
+from agents.basic.stochastic_oscillator import SoAgent
+from typing import List
 
 def get_coin_data(coin: str, timeframe: str = '1h', start_date: Timestamp = None, end_date: Timestamp = None) -> DataFrame:
     """
@@ -72,6 +85,80 @@ def get_coin_data(coin: str, timeframe: str = '1h', start_date: Timestamp = None
     df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='ms')
     df.set_index('Timestamp', inplace=True)
     return df
+
+def add_indicators(data: pd.DataFrame, indicators: List[Agent] = None) -> pd.DataFrame:
+    """
+    Function that adds indicator features.
+
+    Args:
+        data (pd.DataFrame): The data to add the indicators to
+        indicators (List[Indicator], optional): The indicators to add. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The data with the added indicators
+    """
+    if indicators is None:
+        indicators = _get_default_indicators()   
+
+    indicator_data = {}
+    for indicator in indicators:
+        indicator_data[indicator.__class__.__name__] = indicator.act(data)[Actions.INDICATOR_STRENGTH]
+        if not indicator.is_action_strength_normalized():
+            print(f'Indicator {indicator.__class__.__name__} is not normalized!')
+
+    data = data.join(indicator_data)
+    initial_intervals = max([indicator.get_initial_intervals() for indicator in indicators])
+    
+    data = data.iloc[initial_intervals:]
+    return data
+
+def _get_default_indicators() -> List[Agent]:
+    """
+    Function that returns the default indicators.
+    """
+    # TODO: idea, update Indicator class so that it can use different normalization methods
+    return [
+        AdxAgent(),
+        AtrAgent(),     # TODO: normalize feature with pct_change
+        BbAgent(),
+        CmfAgent(),
+        EmaAgent(),     # TODO: normalize feature close / ema. Looks like change from previous value is also important, ie: close was below ema and now is above => buy
+        # TODO: consider EMA with different windows, 200!
+        FibonacciRetracementAgent(),        # TODO: normalize by Close / R2, Close / S2
+        MacdAgent(),
+        ObvAgent(),     # TODO: normalize with pct_change
+        RsiAgent(),
+        SentimentAnalysisAgent(),   # TODO: replace Nan values with 0
+        SmaAgent(),      # TODO: normalize
+        SoAgent()
+    ]
+
+def normalize_features(data: pd.DataFrame, data_window: int = 60) -> pd.DataFrame:
+    """
+    Function that normalizes the data chart features: Close, High, Low, Open, Volume
+
+    The normalization operation are done as follows:
+        - Close = Close[-1] / Close[-2]
+        - Open = Open[-1] / Close[-1]
+        - High = High[-1] / Close[-1]
+        - Low = Low[-1] / Close[-1]
+        - Volume = Volume[-1] / Volume.rolling(data_window).max
+    
+    Args:
+        data (pd.DataFrame): The data to normalize
+        data_window (int): The window size for the volume feature
+
+    Returns:
+        pd.DataFrame: The data with normalized features. Normalization operations are done in place.
+    """
+    data['feature_Close'] = data['Close'].pct_change()
+    data['feature_High'] = data['High'] / data['Close']
+    data['feature_Low'] = data['Low'] / data['Close']
+    data['feature_Open'] = data['Open'] / data['Close']
+    data['feature_Volume'] = data['Volume'] / data['Volume'].rolling(data_window).max()
+
+    data.dropna(inplace=True)
+    return data
 
 def _get_ms_per_timeframe(timeframe: str) -> int:
     """

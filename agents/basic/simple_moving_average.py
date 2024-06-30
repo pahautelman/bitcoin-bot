@@ -111,7 +111,8 @@ class SmaAgent(Indicator):
             ActionSimple: The action to take
         """
         if coin_data.iloc[-1]['Close'] >= sma.iloc[-1][self.SMA]:
-            return ActionSimple.BUY, 1
-        else:
-            return ActionSimple.SELL, -1
+            action = ActionSimple.BUY
+        elif coin_data.iloc[-1]['Close'] < sma.iloc[-1][self.SMA]:
+            action = ActionSimple.SELL
+        return action, sma.iloc[-1][self.SMA]
             
